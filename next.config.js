@@ -3,6 +3,11 @@ const withPWA = require("next-pwa");
 
 module.exports = withPWA({
   reactStrictMode: true,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
   images: {
     domains: ["lh3.googleusercontent.com", "avatars.githubusercontent.com"],
   },
