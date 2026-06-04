@@ -59,7 +59,7 @@ export default async function DashboardPage() {
     .limit(300);
 
   // Busca títulos/emojis das listas que aparecem no histórico
-  const purchasedListIds = [...new Set((purchasedItems ?? []).map((i) => i.list_id))];
+  const purchasedListIds = Array.from(new Set((purchasedItems ?? []).map((i) => i.list_id)));
   const { data: purchasedListDetails } = purchasedListIds.length > 0
     ? await supabase.from("lists").select("id, title, emoji").in("id", purchasedListIds)
     : { data: [] as { id: string; title: string; emoji: string }[] };
