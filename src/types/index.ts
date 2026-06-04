@@ -110,6 +110,20 @@ export interface AiMatchResult {
   explanation: string;
 }
 
+/** Resultado do Scanner Geral — identifica QUALQUER produto sem target_item */
+export interface ScanAnyResult {
+  /** Nome do produto identificado pela IA */
+  product: string;
+  /** Preço identificado na imagem (float em euros) */
+  price: number | null;
+  /** Texto bruto do OCR para audit */
+  ocr_raw: string;
+  /** Confiança da extração (0–1) */
+  confidence: number;
+  /** Explicação legível em italiano */
+  explanation: string;
+}
+
 // ──────────────────────────────────────────────────────────
 // Eventos Realtime (payloads recebidos via Supabase channel)
 // ──────────────────────────────────────────────────────────

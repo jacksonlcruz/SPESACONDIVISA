@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2 } from "lucide-react";
+import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2, ScanLine } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -10,7 +10,8 @@ import { useShoppingCalculator } from "@/hooks/useShoppingCalculator";
 import ShoppingListItem from "./ShoppingListItem";
 import TotalDisplay from "./TotalDisplay";
 import PriceModal from "./PriceModal";
-import type { ListItem, AiMatchResult } from "@/types";
+import GeneralScanner from "./GeneralScanner";
+import type { ListItem, AiMatchResult, ScanAnyResult } from "@/types";
 
 interface ShoppingListProps {
   listId: string;
@@ -67,6 +68,12 @@ export default function ShoppingList({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue]         = useState(listTitle);
   const titleInputRef                       = useRef<HTMLInputElement>(null);
+
+  // ── Estado do Scanner Geral ──────────────────────────────
+  const [showGeneralScanner, setShowGeneralScanner] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanAnyResult | null>(null);
+  const [showScanNewItemModal, setShowScanNewItemModal] = useState(false);
+  const [isAddingScanned, setIsAddingScanned] = useState(false);
 
   // Sync título se prop mudar externamente
   useEffect(() => { setTitleValue(listTitle); }, [listTitle]);
@@ -259,6 +266,107 @@ export default function ShoppingList({
   }, [isDeleting, listId, router]);
 
   // ──────────────────────────────────────────────────────────
+  // Scanner Geral: busca por similaridade
+  // ──────────────────────────────────────────────────────────
+  //
+  // Função auxiliar: calcula similaridade simples entre duas strings.
+  // Compara normalizando (lowercase, trim) e verifica:
+  //   1. Match exato
+  //   2. Uma string contém a outra
+  //   3. Sobreposição de palavras significativas (>= 2 palavras comuns)
+  const findSimilarItem = useCallback(
+    (productName: string): ListItem | null => {
+      if (!productName) return null;
+      const target = productName.toLowerCase().trim();
+      const targetWords = target.split(/\s+/).filter((w) => w.length > 2);
+
+      // Filtra apenas itens pendentes (não checkados) para dar match
+      const candidates = items.filter((i) => !i.is_checked);
+
+      // Match exato
+      for (const item of candidates) {
+        if (item.name.toLowerCase().trim() === target) return item;
+      }
+
+      // Contém
+      for (const item of candidates) {
+        const name = item.name.toLowerCase().trim();
+        if (name.includes(target) || target.includes(name)) return item;
+      }
+
+      // Sobreposição de palavras significativas (>=2 em comum)
+      for (const item of candidates) {
+        const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+        const common = targetWords.filter((tw) => itemWords.some((iw) => iw === tw || tw.includes(iw) || iw.includes(tw)));
+        if (common.length >= 2) return item;
+      }
+
+      return null;
+    },
+    [items]
+  );
+
+  // ── Callback do Scanner Geral ao identificar produto ─────
+  const handleScanResult = useCallback(
+    (result: ScanAnyResult) => {
+      setScanResult(result);
+      setShowGeneralScanner(false);
+
+      // Busca por similaridade na lista
+      const matched = findSimilarItem(result.product);
+
+      if (matched) {
+        // Item existe: abre o modal de preço preenchido com o preço scaneado
+        const preFilledItem: ListItem = {
+          ...matched,
+          unit_price: result.price ?? matched.unit_price,
+          ai_matched_label: result.product,
+          ocr_raw_price: result.ocr_raw,
+        };
+        setModalItem(preFilledItem);
+        setScanResult(null);
+      } else {
+        // Item NÃO existe: exibe diálogo perguntando se quer adicionar
+        setShowScanNewItemModal(true);
+      }
+    },
+    [findSimilarItem]
+  );
+
+  // ── Confirma adição do item scaneado ─────────────────────
+  const handleAddScannedItem = useCallback(async () => {
+    if (!scanResult || isAddingScanned) return;
+    setIsAddingScanned(true);
+    try {
+      const maxOrder = items.reduce((m, i) => Math.max(m, i.sort_order), 0);
+      const price = scanResult.price ?? null;
+
+      // Insere o novo item diretamente na tabela, já marcado como no carrinho
+      const { error: dbError } = await supabase.from("list_items").insert({
+        list_id: listId,
+        name: scanResult.product,
+        quantity: 1,
+        unit: "pz",
+        unit_price: price,
+        is_checked: true,
+        sort_order: maxOrder + 1,
+        ai_matched_label: scanResult.product,
+        ocr_raw_price: scanResult.ocr_raw,
+      });
+      if (dbError) throw new Error(dbError.message);
+
+      const priceStr = price != null ? `€${price.toFixed(2)}` : "senza prezzo";
+      toast.success(`"${scanResult.product}" aggiunto al carrello! 🛒 (${priceStr})`);
+      setShowScanNewItemModal(false);
+      setScanResult(null);
+    } catch {
+      toast.error("Impossibile aggiungere l'articolo scansionato");
+    } finally {
+      setIsAddingScanned(false);
+    }
+  }, [scanResult, isAddingScanned, items, listId]);
+
+  // ──────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────
   return (
@@ -320,6 +428,17 @@ export default function ShoppingList({
               className="flex-shrink-0 p-2 rounded-xl hover:bg-zinc-900 transition-colors"
             >
               <Users size={18} className="text-zinc-400" />
+            </button>
+          )}
+
+          {/* Botão Scanner Geral */}
+          {canEdit && (
+            <button
+              onClick={() => setShowGeneralScanner(true)}
+              aria-label="Scanner generale"
+              className="flex-shrink-0 p-2 rounded-xl hover:bg-zinc-900 transition-colors"
+            >
+              <ScanLine size={18} className="text-zinc-400 hover:text-[#deff9a] transition-colors" />
             </button>
           )}
 
@@ -508,7 +627,7 @@ export default function ShoppingList({
                   {isComplete
                     ? "Vuoi completare e archiviare questa lista? Tutti gli articoli saranno salvati nello storico."
                     : "Ci sono ancora articoli da comprare. Vuoi finalizzare il pagamento solo per gli articoli attualmente nel carrello e mantenere gli altri per la prossima spesa?"}
-                </p>
+          or      </p>
 
                 {/* Botões */}
                 <div className="flex gap-3">
@@ -607,7 +726,7 @@ export default function ShoppingList({
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold text-white">👥 Invita un collaboratore</h2>
-                <p className="text-sm text-zinc-500 mt-0.5">Inserisci l&apos;email per invitare</p>
+                <p className="text-sm text-zinc-500 mt-0.5">Inserisci l'email per invitare</p>
               </div>
               <button
                 onClick={() => setShowShareModal(false)}
@@ -656,6 +775,110 @@ export default function ShoppingList({
                 )}
               </button>
             </form>
+          </div>
+        </>
+      )}
+
+      {/* Scanner Geral */}
+      {showGeneralScanner && (
+        <GeneralScanner
+          listItems={items}
+          onScanResult={handleScanResult}
+          onClose={() => setShowGeneralScanner(false)}
+        />
+      )}
+
+      {/* Modal: Novo item scaneado (não está na lista) */}
+      {showScanNewItemModal && scanResult && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/80 animate-fade-in"
+            onClick={() => {
+              setShowScanNewItemModal(false);
+              setScanResult(null);
+            }}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+            <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
+              {/* Ícone */}
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#deff9a]/10 border border-[#deff9a]/20 mx-auto mb-5">
+                <span className="text-2xl">📦</span>
+              </div>
+
+              {/* Título */}
+              <h2 className="text-lg font-bold text-white text-center mb-3">
+                Nuovo prodotto rilevato
+              </h2>
+
+              {/* Detalhes */}
+              <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl px-4 py-4 mb-5 space-y-3">
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                    Prodotto identificato
+                  </p>
+                  <p className="text-lg font-bold text-white">
+                    &ldquo;{scanResult.product}&rdquo;
+                  </p>
+                </div>
+                {scanResult.price != null && (
+                  <>
+                    <div className="h-px bg-zinc-800" />
+                    <div>
+                      <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                        Prezzo rilevato
+                      </p>
+                      <p className="text-xl font-bold text-[#deff9a]">
+                        €{scanResult.price.toFixed(2)}
+                      </p>
+                    </div>
+                  </>
+                )}
+                <div className="h-px bg-zinc-800" />
+                <p className="text-xs text-zinc-500 italic leading-relaxed">
+                  {scanResult.explanation || "Nessuna descrizione aggiuntiva."}
+                </p>
+                {scanResult.ocr_raw && (
+                  <p className="text-xs text-zinc-600 font-mono">
+                    OCR: {scanResult.ocr_raw}
+                  </p>
+                )}
+              </div>
+
+              {/* Mensagem */}
+              <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
+                L'articolo <strong className="text-white">&ldquo;{scanResult.product}&rdquo;</strong> non è nella tua lista.
+                {scanResult.price != null
+                  ? ` Vuoi aggiungerlo ora per €${scanResult.price.toFixed(2)}?`
+                  : " Vuoi aggiungerlo ora?"}
+              </p>
+
+              {/* Botões */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowScanNewItemModal(false);
+                    setScanResult(null);
+                  }}
+                  disabled={isAddingScanned}
+                  className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
+                >
+                  No, grazie
+                </button>
+                <button
+                  onClick={handleAddScannedItem}
+                  disabled={isAddingScanned}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#deff9a] disabled:opacity-50 text-sm font-bold text-black transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+                >
+                  {isAddingScanned ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <>
+                      ✅ Sì, aggiungi
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </>
       )}
