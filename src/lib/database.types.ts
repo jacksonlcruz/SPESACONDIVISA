@@ -1,7 +1,7 @@
 /**
  * database.types.ts
- * Gerado automaticamente via: npx supabase gen types typescript --linked
- * Inclui apenas as tabelas relevantes para autocompletar.
+ * Compatível com @supabase/supabase-js v2.43 + @supabase/ssr v0.10
+ * Campos obrigatórios: Relationships, Enums, CompositeTypes
  */
 export type Json =
   | string
@@ -11,7 +11,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: {
@@ -23,8 +23,19 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["profiles"]["Row"], "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Insert: {
+          id: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          email: string;
+        };
+        Update: {
+          id?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          email?: string;
+        };
+        Relationships: [];
       };
       lists: {
         Row: {
@@ -37,11 +48,19 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["lists"]["Row"],
-          "id" | "share_token" | "created_at" | "updated_at"
-        >;
-        Update: Partial<Database["public"]["Tables"]["lists"]["Insert"]>;
+        Insert: {
+          owner_id: string;
+          title: string;
+          emoji: string;
+          is_archived?: boolean;
+        };
+        Update: {
+          owner_id?: string;
+          title?: string;
+          emoji?: string;
+          is_archived?: boolean;
+        };
+        Relationships: [];
       };
       list_items: {
         Row: {
@@ -57,14 +76,42 @@ export interface Database {
           ai_matched_label: string | null;
           ocr_raw_price: string | null;
           sort_order: number;
+          /** 'pending' (ativo) | 'purchased' (finalizado/histórico) */
+          status: string | null;
+          /** Timestamp do momento em que o item foi finalizado */
+          purchased_at: string | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["list_items"]["Row"],
-          "id" | "subtotal" | "created_at" | "updated_at"
-        >;
-        Update: Partial<Database["public"]["Tables"]["list_items"]["Insert"]>;
+        Insert: {
+          list_id: string;
+          created_by?: string | null;
+          name: string;
+          quantity: number;
+          unit: string;
+          unit_price?: number | null;
+          is_checked?: boolean;
+          ai_matched_label?: string | null;
+          ocr_raw_price?: string | null;
+          sort_order: number;
+          status?: string | null;
+          purchased_at?: string | null;
+        };
+        Update: {
+          list_id?: string;
+          created_by?: string | null;
+          name?: string;
+          quantity?: number;
+          unit?: string;
+          unit_price?: number | null;
+          is_checked?: boolean;
+          ai_matched_label?: string | null;
+          ocr_raw_price?: string | null;
+          sort_order?: number;
+          status?: string | null;
+          purchased_at?: string | null;
+        };
+        Relationships: [];
       };
       list_shares: {
         Row: {
@@ -76,11 +123,21 @@ export interface Database {
           accepted_at: string | null;
           created_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["list_shares"]["Row"],
-          "id" | "created_at"
-        >;
-        Update: Partial<Database["public"]["Tables"]["list_shares"]["Insert"]>;
+        Insert: {
+          list_id: string;
+          user_id?: string | null;
+          invited_email?: string | null;
+          role: "viewer" | "editor";
+          accepted_at?: string | null;
+        };
+        Update: {
+          list_id?: string;
+          user_id?: string | null;
+          invited_email?: string | null;
+          role?: "viewer" | "editor";
+          accepted_at?: string | null;
+        };
+        Relationships: [];
       };
     };
     Views: {
@@ -92,6 +149,7 @@ export interface Database {
           total_spent: number;
           estimated_total: number;
         };
+        Relationships: [];
       };
     };
     Functions: {
@@ -104,5 +162,7 @@ export interface Database {
         Returns: boolean;
       };
     };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
-}
+};

@@ -37,6 +37,7 @@ export function useRealtimeList(listId: string) {
       .from("list_items")
       .select("*")
       .eq("list_id", listId)
+      .or("status.is.null,status.eq.pending")   // exclui itens já finalizados
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
 
@@ -58,9 +59,13 @@ export function useRealtimeList(listId: string) {
   }, []);
 
   const applyUpdate = useCallback((updatedItem: ListItem) => {
-    setItems((prev) =>
-      prev.map((i) => (i.id === updatedItem.id ? { ...i, ...updatedItem } : i))
-    );
+    setItems((prev) => {
+      // Se o item foi finalizado, remove da lista ativa
+      if (updatedItem.status === "purchased") {
+        return prev.filter((i) => i.id !== updatedItem.id);
+      }
+      return prev.map((i) => (i.id === updatedItem.id ? { ...i, ...updatedItem } : i));
+    });
   }, []);
 
   const applyDelete = useCallback((deletedItem: Partial<ListItem>) => {
@@ -156,6 +161,19 @@ export function useRealtimeList(listId: string) {
     if (dbError) throw new Error(dbError.message);
   }, []);
 
+  // Finaliza itens (muda status para 'purchased') — base do fluxo de compra
+  const finalizeItems = useCallback(async (itemIds: string[]) => {
+    if (itemIds.length === 0) return;
+    const now = new Date().toISOString();
+    const { error: dbError } = await supabase
+      .from("list_items")
+      .update({ status: "purchased", purchased_at: now })
+      .in("id", itemIds);
+    if (dbError) throw new Error(dbError.message);
+    // Remove otimisticamente do estado local (realtime vai confirmar)
+    setItems((prev) => prev.filter((i) => !itemIds.includes(i.id)));
+  }, []);
+
   return {
     items,
     loading,
@@ -164,6 +182,7 @@ export function useRealtimeList(listId: string) {
     checkItem,
     uncheckItem,
     deleteItem,
+    finalizeItems,
     refetch: fetchItems,
   };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft } from "lucide-react";
+import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -37,7 +37,7 @@ export default function ShoppingList({
 }: ShoppingListProps) {
   const router = useRouter();
 
-  const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, refetch } =
+  const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, finalizeItems, refetch } =
     useRealtimeList(listId);
 
   const totals = useShoppingCalculator(items);
@@ -52,6 +52,14 @@ export default function ShoppingList({
 
   // Estado do modal de compartilhamento
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // Estado do modal de exclusão da lista
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting]           = useState(false);
+
+  // Estado do modal de finalização de compra
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [isFinalizing, setIsFinalizing]           = useState(false);
   const [shareEmail, setShareEmail]         = useState("");
   const [isSharing, setIsSharing]           = useState(false);
 
@@ -198,23 +206,57 @@ export default function ShoppingList({
     },
     [deleteItem]
   );
-  // ── Finaliza a compra: arquiva a lista e volta ao dashboard ──────────
-  const handleFinalize = useCallback(async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from("lists") as any)
-        .update({ is_archived: true })
-        .eq("id", listId);
-      if (error) throw error;
-      toast.success("🎉 Spesa completata! Ottimo lavoro!");
-      router.push("/dashboard");
-    } catch {
-      toast.error("Errore nel finalizzare la spesa");
-    }
-  }, [listId, router]);
+
   // ── Separa itens: pendentes vs marcados ──────────────────
+  // (declarados antes dos callbacks que os referem como dependências)
   const pendingItems  = items.filter((i) => !i.is_checked);
   const checkedItems  = items.filter((i) =>  i.is_checked);
+
+  // ── Finaliza os itens do carrinho (partial ou completo) ───────────
+  const handleFinalizeConfirm = useCallback(async () => {
+    if (isFinalizing) return;
+    setIsFinalizing(true);
+    try {
+      const checkedIds = checkedItems.map((i) => i.id);
+      const isComplete = pendingItems.length === 0;
+
+      await finalizeItems(checkedIds);
+
+      if (isComplete) {
+        // Compra completa: arquiva lista e volta ao dashboard
+        await supabase.from("lists").update({ is_archived: true }).eq("id", listId);
+        toast.success("🎉 Spesa completata! Ottimo lavoro!");
+        router.push("/dashboard");
+      } else {
+        // Compra parcial: permanece na lista com itens restantes
+        const n = checkedIds.length;
+        toast.success(`✅ ${n} ${n === 1 ? "articolo acquistato" : "articoli acquistati"}!`);
+        setShowFinalizeModal(false);
+      }
+    } catch {
+      toast.error("Errore nel finalizzare la spesa");
+    } finally {
+      setIsFinalizing(false);
+    }
+  }, [isFinalizing, checkedItems, pendingItems, finalizeItems, listId, router]);
+
+  // ── Exclui a lista permanentemente ────────────────────────
+  const handleDeleteList = useCallback(async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("lists")
+        .delete()
+        .eq("id", listId);
+      if (error) throw error;
+      toast.success("Lista eliminata con successo 🗑️");
+      router.push("/dashboard");
+    } catch {
+      toast.error("Errore nell'eliminazione della lista");
+      setIsDeleting(false);
+    }
+  }, [isDeleting, listId, router]);
 
   // ──────────────────────────────────────────────────────────
   // RENDER
@@ -278,6 +320,17 @@ export default function ShoppingList({
               className="flex-shrink-0 p-2 rounded-xl hover:bg-zinc-900 transition-colors"
             >
               <Users size={18} className="text-zinc-400" />
+            </button>
+          )}
+
+          {/* Botão Excluir Lista */}
+          {canEdit && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              aria-label="Elimina lista"
+              className="flex-shrink-0 p-2 rounded-xl hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 size={18} className="text-zinc-600 hover:text-red-400 transition-colors" />
             </button>
           )}
         </div>
@@ -367,7 +420,7 @@ export default function ShoppingList({
           {checkedItems.length > 0 && (
             <div className="px-4 pt-3">
               <button
-                onClick={handleFinalize}
+                onClick={() => setShowFinalizeModal(true)}
                 className="w-full bg-[#deff9a] text-black font-bold py-4 rounded-2xl text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg"
               >
                 🛒 Finalizza Spesa
@@ -409,9 +462,132 @@ export default function ShoppingList({
         <PriceModal
           item={modalItem}
           listItems={items}
+          currentCartTotal={totals.totalSpent}
           onConfirm={handleModalConfirm}
           onClose={() => setModalItem(null)}
         />
+      )}
+
+      {/* Modal de confirmação — Finalizza Spesa */}
+      {showFinalizeModal && (() => {
+        const isComplete = pendingItems.length === 0;
+        return (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/80 animate-fade-in"
+              onClick={() => !isFinalizing && setShowFinalizeModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+              <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
+                {/* Ícone */}
+                <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#deff9a]/10 border border-[#deff9a]/20 mx-auto mb-5">
+                  <span className="text-2xl">🛒</span>
+                </div>
+
+                {/* Título */}
+                <h2 className="text-lg font-bold text-white text-center mb-3">
+                  {isComplete ? "Completa la spesa" : "Finalizza pagamento parziale"}
+                </h2>
+
+                {/* Resumo */}
+                <div className="flex justify-center gap-6 mb-4">
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-[#deff9a]">{checkedItems.length}</p>
+                    <p className="text-xs text-zinc-500">nel carrello</p>
+                  </div>
+                  {!isComplete && (
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-zinc-400">{pendingItems.length}</p>
+                      <p className="text-xs text-zinc-500">ancora da comprare</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mensagem */}
+                <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
+                  {isComplete
+                    ? "Vuoi completare e archiviare questa lista? Tutti gli articoli saranno salvati nello storico."
+                    : "Ci sono ancora articoli da comprare. Vuoi finalizzare il pagamento solo per gli articoli attualmente nel carrello e mantenere gli altri per la prossima spesa?"}
+                </p>
+
+                {/* Botões */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowFinalizeModal(false)}
+                    disabled={isFinalizing}
+                    className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    onClick={handleFinalizeConfirm}
+                    disabled={isFinalizing}
+                    className="flex-1 py-3.5 rounded-2xl bg-[#deff9a] disabled:opacity-50 text-sm font-bold text-black transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+                  >
+                    {isFinalizing ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      isComplete ? "✅ Archivia" : "✅ Sì, Finalizza"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Modal de confirmação de exclusão */}
+      {showDeleteModal && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/80 animate-fade-in"
+            onClick={() => !isDeleting && setShowDeleteModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+            <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
+              {/* Ícone */}
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-5">
+                <Trash2 size={26} className="text-red-400" />
+              </div>
+
+              {/* Texto */}
+              <h2 className="text-lg font-bold text-white text-center mb-2">
+                Elimina lista
+              </h2>
+              <p className="text-sm text-zinc-400 text-center mb-7">
+                Sei sicuro di voler eliminare questa lista e tutti i suoi articoli?
+                <br />
+                <span className="text-zinc-600 text-xs mt-1 block">Questa azione è irreversibile.</span>
+              </p>
+
+              {/* Botões */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={handleDeleteList}
+                  disabled={isDeleting}
+                  className="flex-1 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-sm font-bold text-white transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 size={15} />
+                      Elimina
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Modal de compartilhamento */}

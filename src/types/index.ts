@@ -39,6 +39,10 @@ export interface ListItem {
   ai_matched_label: string | null;
   ocr_raw_price: string | null;
   sort_order: number;
+  /** 'pending' (ativo na lista) | 'purchased' (finalizado, vai para histórico) */
+  status: 'pending' | 'purchased' | null;
+  /** Timestamp de quando o item foi finalizado (Finalizza Spesa) */
+  purchased_at: string | null;
   created_at: string;
   updated_at: string;
 }

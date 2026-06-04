@@ -12,6 +12,8 @@ type PriceModalMode = "manual" | "camera";
 interface PriceModalProps {
   item: ListItem;
   listItems: ListItem[];
+  /** Total já gasto nos itens que estão no carrinho (em euros) */
+  currentCartTotal: number;
   onConfirm: (quantity: number, unitPrice: number, aiData?: Partial<AiMatchResult>) => void;
   onClose: () => void;
 }
@@ -24,7 +26,7 @@ interface PriceModalProps {
 //   - Manual: digita quantidade e preço unitário
 //   - Câmera: fotografa a etiqueta (IA/OCR)
 // ──────────────────────────────────────────────────────────
-export default function PriceModal({ item, listItems, onConfirm, onClose }: PriceModalProps) {
+export default function PriceModal({ item, listItems, currentCartTotal, onConfirm, onClose }: PriceModalProps) {
   const [mode, setMode]           = useState<PriceModalMode>("manual");
   const [quantity, setQuantity]   = useState<string>(String(item.quantity));
   const [unitPrice, setUnitPrice] = useState<string>(item.unit_price ? String(item.unit_price) : "");
@@ -33,7 +35,8 @@ export default function PriceModal({ item, listItems, onConfirm, onClose }: Pric
 
   const qty   = parseFloat(quantity)   || 0;
   const price = parseFloat(unitPrice)  || 0;
-  const subtotal = qty * price;
+  const subtotal      = qty * price;
+  const predictedTotal = currentCartTotal + subtotal;
 
   // Preenche automaticamente preço sugerido pela IA
   useEffect(() => {
@@ -187,13 +190,29 @@ export default function PriceModal({ item, listItems, onConfirm, onClose }: Pric
                 </div>
               </div>
 
-              {/* Preview do subtotal */}
+              {/* Preview subtotal + total previsto */}
               {subtotal > 0 && (
-                <div className="flex items-center justify-between bg-[#deff9a]/10 rounded-2xl px-4 py-3">
-                  <span className="text-sm font-medium text-[#deff9a]">Subtotale</span>
-                  <span className="text-lg font-bold text-[#deff9a]">
-                    {formatCurrency(subtotal)}
-                  </span>
+                <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl px-4 py-3.5 space-y-3">
+                  {/* Subtotale deste item */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-400">Subtotale articolo</span>
+                    <span className="text-base font-bold text-[#deff9a]">
+                      {formatCurrency(subtotal)}
+                    </span>
+                  </div>
+
+                  <div className="h-px bg-zinc-800" />
+
+                  {/* Novo total previsto */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Totale spesa stimato</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Se aggiungi questo articolo</p>
+                    </div>
+                    <span className="text-xl font-bold text-[#deff9a]">
+                      {formatCurrency(predictedTotal)}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

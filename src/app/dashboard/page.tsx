@@ -1,10 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Plus, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
+import ListsDashboard from "./ListsDashboard";
 import type { Database } from "@/lib/database.types";
 import CreateListButton from "./CreateListButton";
+import StoricoDashboard from "./StoricoDashboard";
+
+// ── Tipo auxiliar para o histórico agrupado ──────────────────────────────
+type SpesaGroup = {
+  key: string;
+  dateLabel: string;
+  listId: string;
+  listTitle: string;
+  listEmoji: string;
+  itemCount: number;
+  total: number;
+};
 
 export default async function DashboardPage() {
   const cookieStore = cookies();
@@ -37,6 +49,48 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .not("accepted_at", "is", null);
 
+  // ── Histórico: itens finalizados (purchased) ─────────────────────────
+  const { data: purchasedItems } = await supabase
+    .from("list_items")
+    .select("id, name, unit, quantity, unit_price, purchased_at, list_id")
+    .eq("status", "purchased")
+    .not("purchased_at", "is", null)
+    .order("purchased_at", { ascending: false })
+    .limit(300);
+
+  // Busca títulos/emojis das listas que aparecem no histórico
+  const purchasedListIds = [...new Set((purchasedItems ?? []).map((i) => i.list_id))];
+  const { data: purchasedListDetails } = purchasedListIds.length > 0
+    ? await supabase.from("lists").select("id, title, emoji").in("id", purchasedListIds)
+    : { data: [] as { id: string; title: string; emoji: string }[] };
+
+  // Agrupa por (data, lista)
+  const listMap = new Map((purchasedListDetails ?? []).map((l) => [l.id, l]));
+  const groupMap = new Map<string, SpesaGroup>();
+  for (const item of purchasedItems ?? []) {
+    const dateKey = item.purchased_at!.split("T")[0];
+    const key = `${dateKey}_${item.list_id}`;
+    const list = listMap.get(item.list_id);
+    if (!list) continue;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        key,
+        dateLabel: new Date(item.purchased_at!).toLocaleDateString("it-IT", {
+          day: "2-digit", month: "long", year: "numeric",
+        }),
+        listId: item.list_id,
+        listTitle: list.title,
+        listEmoji: list.emoji,
+        itemCount: 0,
+        total: 0,
+      });
+    }
+    const g = groupMap.get(key)!;
+    g.itemCount++;
+    g.total += (item.quantity ?? 1) * (item.unit_price ?? 0);
+  }
+  const spesaGroups = Array.from(groupMap.values());
+
   return (
     <div className="flex flex-col min-h-screen bg-surface-900">
       {/* Header */}
@@ -61,78 +115,29 @@ export default async function DashboardPage() {
 
       {/* Conteúdo */}
       <main className="flex-1 px-4 py-5 space-y-3 pb-28">
-        {/* Listas próprias */}
-        {(ownLists ?? []).length > 0 && (
-          <>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1">
-              Le mie liste ({(ownLists ?? []).length})
-            </p>
-            {(ownLists ?? []).map((list) => (
-              <Link
-                key={list.id}
-                href={`/lista/${list.id}`}
-                className="flex items-center gap-4 bg-surface-800 rounded-2xl px-4 py-4 border border-surface-700 active:scale-[0.98] transition-all hover:border-accent/30"
-              >
-                <div className="w-12 h-12 bg-surface-700 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                  {list.emoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-zinc-100 truncate text-base">{list.title}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    Aggiornata {new Date(list.updated_at).toLocaleDateString("it-IT")}
-                  </p>
-                </div>
-                <span className="text-zinc-600 text-lg">›</span>
-              </Link>
-            ))}
-          </>
-        )}
+        {/* Listas (Client Component com estado local + Realtime) */}
+        <ListsDashboard
+          initialOwnLists={ownLists ?? []}
+          initialSharedLists={(sharedLists ?? []).map((share) => ({
+            list_id: share.list_id,
+            role: share.role,
+            lists: share.lists as { id: string; title: string; emoji: string; updated_at: string } | null,
+          }))}
+        />
 
-        {/* Listas compartilhadas */}
-        {(sharedLists ?? []).length > 0 && (
-          <>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider pt-2 px-1">
-              Condivise con me ({(sharedLists ?? []).length})
-            </p>
-            {(sharedLists ?? []).map((share) => {
-              const list = share.lists as { id: string; title: string; emoji: string; updated_at: string } | null;
-              if (!list) return null;
-              return (
-                <Link
-                  key={share.list_id}
-                  href={`/lista/${share.list_id}`}
-                  className="flex items-center gap-4 bg-surface-800 rounded-2xl px-4 py-4 border border-accent/20 active:scale-[0.98] transition-all hover:border-accent/40"
-                >
-                  <div className="w-12 h-12 bg-surface-700 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                    {list.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-zinc-100 truncate text-base">{list.title}</p>
-                    <p className="text-xs text-accent font-medium mt-0.5">
-                      👥 Condivisa · {share.role === "editor" ? "Editor" : "Visualizzatore"}
-                    </p>
-                  </div>
-                  <span className="text-zinc-600 text-lg">›</span>
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {/* Lista vazia */}
-        {(ownLists ?? []).length === 0 && (sharedLists ?? []).length === 0 && (
-          <div className="flex flex-col items-center gap-4 py-20 text-center">
-            <div className="w-20 h-20 bg-surface-700 rounded-full flex items-center justify-center text-4xl">
-              🛍️
-            </div>
-            <div>
-              <p className="text-zinc-200 font-semibold">Nessuna lista ancora</p>
-              <p className="text-zinc-500 text-sm mt-1">
-                Tocca il pulsante + per crearne una!
-              </p>
-            </div>
-          </div>
-        )}
+        {/* ── Storico Spese (Client Component com modal + clone) ── */}
+        <StoricoDashboard
+          groups={spesaGroups}
+          allItems={(purchasedItems ?? []).map((i) => ({
+            id: i.id,
+            name: i.name,
+            unit: (i as { unit?: string | null }).unit ?? null,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            purchased_at: i.purchased_at as string,
+            list_id: i.list_id,
+          }))}
+        />
       </main>
 
       {/* FAB — cria nova lista */}

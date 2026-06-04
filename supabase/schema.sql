@@ -278,6 +278,30 @@ end $$;
 -- ──────────────────────────────────────────────────────────
 -- 8. FUNÇÃO: aceitar convite via share_token (link público)
 -- ──────────────────────────────────────────────────────────
+-- ──────────────────────────────────────────────────────────
+-- MIGRAÇÃO: status e purchased_at em list_items
+-- Execute no SQL Editor do Supabase APÓS o schema inicial
+-- ──────────────────────────────────────────────────────────
+alter table public.list_items
+  add column if not exists status text default 'pending'
+    check (status in ('pending', 'purchased')),
+  add column if not exists purchased_at timestamptz;
+
+create index if not exists idx_list_items_status
+  on public.list_items(list_id, status);
+
+create index if not exists idx_list_items_purchased_at
+  on public.list_items(purchased_at desc)
+  where purchased_at is not null;
+
+-- Retrocompatibilidade: itens antigos ficam como 'pending'
+update public.list_items set status = 'pending' where status is null;
+
+-- ──────────────────────────────────────────────────────────
+
+-- ──────────────────────────────────────────────────────────
+-- 8. FUNÇÃO: aceitar convite via share_token (link público)
+-- ──────────────────────────────────────────────────────────
 create or replace function public.join_list_by_token(p_token uuid)
 returns json language plpgsql security definer as $$
 declare
