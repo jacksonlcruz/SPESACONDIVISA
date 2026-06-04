@@ -1,4 +1,4 @@
-c"use client";
+"use client";
 
 import { useState, useRef, useCallback } from "react";
 import { Camera, X, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
