@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spesa Condivisa 2.0 - Visione Strategica</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #000000;
+            --accent-color: #deff9a;
+            --text-main: #f5f5f5;
+            --text-sub: #daffde;
+            --card-bg: #1a1a1a;
+            --font-family: 'Urbanist', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #121212;
+            display: grid;
+            gap: 40px;
+            grid-template-columns: 1fr;
+            margin: 0;
+            min-height: 100vh;
+            padding: 40px 0;
+            place-items: center;
+        }
+
+        .slide-container {
+            align-items: flex-start;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            font-family: var(--font-family);
+            height: 720px;
+            justify-content: center;
+            overflow: hidden;
+            padding: 60px;
+            position: relative;
+            width: 1280px;
+        }
+
+        .slide-container::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(222, 255, 154, 0.05) 0%, transparent 70%);
+            z-index: 0;
+        }
+
+        .slide-container::after {
+            background: rgba(218, 255, 222, 0.15);
+            bottom: 40px;
+            content: '';
+            height: 1px;
+            left: 60px;
+            position: absolute;
+            right: 60px;
+            z-index: 0;
+        }
+
+        .slide-container > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        h1, h2, h3, h4 {
+            color: var(--text-main);
+            margin: 0;
+            font-weight: 700;
+        }
+
+        h1 span, h2 span {
+            color: var(--accent-color);
+        }
+
+        .slide-title {
+            font-size: 52px;
+            line-height: 1.1;
+            margin-bottom: 40px;
+            text-align: left;
+            width: 100%;
+        }
+
+        p, li {
+            color: var(--text-sub);
+            font-size: 20px;
+            line-height: 1.6;
+        }
+
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .title-layout {
+            text-align: center;
+            width: 100%;
+        }
+
+        .title-layout h1 {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .section-title-layout {
+            text-align: center;
+            width: 100%;
+        }
+
+        .section-title-layout h2 {
+            font-size: 70px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 20px;
+            display: inline-block;
+        }
+
+        .two-column {
+            display: flex;
+            gap: 50px;
+            width: 100%;
+        }
+
+        .two-column.tiled > div {
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            padding: 40px;
+            flex: 1;
+        }
+
+        .two-column.tiled h3 {
+            color: var(--accent-color);
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+
+        .highlight-numbers-layout {
+            align-items: center;
+        }
+
+        .highlight-numbers-layout .number {
+            color: var(--accent-color);
+            font-size: 160px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .tiled-content {
+            display: flex;
+            gap: 30px;
+            width: 100%;
+        }
+
+        .tile {
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            flex: 1;
+            padding: 35px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .tile .icon-box {
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            color: #000;
+            display: flex;
+            height: 60px;
+            justify-content: center;
+            align-items: center;
+            width: 60px;
+            font-size: 24px;
+        }
+
+        .table-layout table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .table-layout th {
+            background-color: var(--accent-color);
+            color: #000;
+            padding: 20px;
+            text-align: left;
+        }
+
+        .table-layout td {
+            border-bottom: 1px solid rgba(218, 255, 222, 0.2);
+            color: var(--text-sub);
+            padding: 20px;
+        }
+
+        .qa-layout {
+            text-align: center;
+            width: 100%;
+        }
+
+        .qa-layout h2 {
+            font-size: 100px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container" id="slide1">
+    <div class="title-layout">
+        <h1>Spesa <span>Condivisa</span> 2.0</h1>
+        <p class="subtitle">Visione Strategica per un'Esperienza di Spesa Premium e Collaborativa</p>
+    </div>
+</div>
+
+<div class="slide-container" id="slide2">
+    <div class="section-title-layout">
+        <h2>Analisi dello <span>Stato Attuale</span></h2>
+    </div>
+</div>
+
+<div class="slide-container" id="slide3">
+    <h2 class="slide-title">Dal Prototipo al <span>Prodotto</span></h2>
+    <div class="content-area">
+        <div class="two-column tiled">
+            <div>
+                <h3>Stato Corrente (Raw)</h3>
+                <p>Interfaccia basata su HTML nativo, design non ottimizzato per mobile-first e limitazioni nelle operazioni CRUD (modifica nomi liste).</p>
+            </div>
+            <div>
+                <h3>Visione 2.0 (Premium)</h3>
+                <p>UX raffinata stile Google Keep, interazioni fluide, gestione dinamica delle liste e architettura scalabile basata su Supabase.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide4">
+    <h2 class="slide-title">L'Estetica Minimalista di <span>Keep</span></h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p>Il nuovo design si focalizza sulla velocità e sulla chiarezza visiva:</p>
+                <ul>
+                    <li>Card intuitive con angoli arrotondati (rounded-xl)</li>
+                    <li>Tipografia ad alta leggibilità e contrasto premium</li>
+                    <li>Bottoni di azione eleganti e allineati</li>
+                    <li>Interfaccia pulita senza elementi HTML nativi grezzi</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide5">
+    <h2 class="slide-title">Sincronizzazione <span>Realtime</span></h2>
+    <div class="content-area">
+        <div class="two-column highlight-numbers-layout">
+            <div>
+                <div class="number">100%</div>
+            </div>
+            <div>
+                <h3>Potenza di Supabase</h3>
+                <p>Utilizzo di PostgreSQL Realtime per aggiornamenti istantanei tra dispositivi. Quando un familiare marca un prodotto, la modifica appare immediatamente su tutti gli schermi collegati.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide6">
+    <h2 class="slide-title">Funzionalità <span>Evolute</span></h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="tile">
+                <div class="icon-box"><i class="fa-solid fa-pen"></i></div>
+                <h4>Personalizzazione Totale</h4>
+                <p>Rinomina le tue liste in ogni momento cliccando direttamente sul titolo (Inline Editing).</p>
+            </div>
+            <div class="tile">
+                <div class="icon-box"><i class="fa-solid fa-user-plus"></i></div>
+                <h4>Invito Collaboratori</h4>
+                <p>Condivisione sicura tramite email con l'apertura di un Modal (Pop-up) elegante.</p>
+            </div>
+            <div class="tile">
+                <div class="icon-box"><i class="fa-solid fa-bolt"></i></div>
+                <h4>Interfaccia Camera Premium</h4>
+                <p>Input della fotocamera nascosto dietro un bottone Tailwind stilizzato con l'attributo capture="environment".</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide7">
+    <h2 class="slide-title">Confronto: <span>Metodologia</span></h2>
+    <div class="content-area">
+        <div class="table-layout">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Caratteristica</th>
+                        <th>Metodo Corrente (Grezzo)</th>
+                        <th>Sistema Evoluto 2.0</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Design & UX</td>
+                        <td>HTML Nativo senza stile</td>
+                        <td>Tailwind Premium (Keep Style)</td>
+                    </tr>
+                    <tr>
+                        <td>Modifica Nome Lista</td>
+                        <td>Non disponibile</td>
+                        <td>In linea cliccando sul titolo</td>
+                    </tr>
+                    <tr>
+                        <td>Condivisione</td>
+                        <td>Icone rotte / disallineate</td>
+                        <td>Modal pulito con input email</td>
+                    </tr>
+                    <tr>
+                        <td>Fotocamera</td>
+                        <td>Bottone 'Scegli File' nativo</td>
+                        <td>Icona cliccabile grande e fluida</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide8">
+    <div class="qa-layout">
+        <h2>Pronto per l'evoluzione?</h2>
+        <p>Salva questo file come ROADMAP_VISUAL.html e passalo come contesto al tuo agente nel VS Code.</p>
+        <p style="margin-top:40px; color:var(--accent-color);">spesacondivisa.app</p>
+    </div>
+</div>
+
+</body>
+</html>
