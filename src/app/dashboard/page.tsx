@@ -121,7 +121,7 @@ export default async function DashboardPage() {
           initialSharedLists={(sharedLists ?? []).map((share) => ({
             list_id: share.list_id,
             role: share.role,
-            lists: share.lists as { id: string; title: string; emoji: string; updated_at: string } | null,
+            lists: (share.lists as unknown) as { id: string; title: string; emoji: string; updated_at: string } | null,
           }))}
         />
 
