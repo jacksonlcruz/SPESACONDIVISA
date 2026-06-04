@@ -5,9 +5,14 @@ import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code  = searchParams.get("code");
   const next  = searchParams.get("next") ?? "/dashboard";
+
+  // Usa variável de ambiente como base URL.
+  // Dentro do Docker, request.url resolve para localhost:80,
+  // então NUNCA usar `origin` da requisição no servidor.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
 
   if (code) {
     const cookieStore = cookies();
@@ -34,11 +39,9 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Usa origin da requisição para funcionar em qualquer ambiente
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }
 
-  // Usa origin da requisição para funcionar em qualquer ambiente
-  return NextResponse.redirect(`${origin}/login?error=auth_callback`);
+  return NextResponse.redirect(`${baseUrl}/login?error=auth_callback`);
 }
