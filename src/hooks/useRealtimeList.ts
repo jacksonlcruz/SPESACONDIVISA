@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { ListItem, RealtimePayload } from "@/types";
+import type { ListItem } from "@/types";
 
 // ──────────────────────────────────────────────────────────
 // Hook: useRealtimeList
@@ -79,7 +79,7 @@ export function useRealtimeList(listId: string) {
     // Canal com filtro por list_id para receber apenas eventos desta lista
     const channel = supabase
       .channel(`list-items:${listId}`)
-      .on<ListItem>(
+      .on(
         "postgres_changes",
         {
           event: "*",                     // INSERT | UPDATE | DELETE
@@ -87,16 +87,17 @@ export function useRealtimeList(listId: string) {
           table: "list_items",
           filter: `list_id=eq.${listId}`, // RLS + filtro de coluna
         },
-        (payload: RealtimePayload<ListItem>) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           switch (payload.eventType) {
             case "INSERT":
-              applyInsert(payload.new);
+              applyInsert(payload.new as ListItem);
               break;
             case "UPDATE":
-              applyUpdate(payload.new);
+              applyUpdate(payload.new as ListItem);
               break;
             case "DELETE":
-              applyDelete(payload.old);
+              applyDelete(payload.old as Partial<ListItem>);
               break;
           }
         }
