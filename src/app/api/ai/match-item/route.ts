@@ -70,27 +70,36 @@ export async function POST(req: NextRequest) {
     //  4. Exemplos few-shot embutidos para calibrar o match semântico
     //  5. Regras explícitas contra injeção de conteúdo da imagem
     //
-    const systemPrompt = `Sei un assistente OCR e di corrispondenza semantica per una app di lista della spesa.
+    const systemPrompt = `Sei il motore di Intelligenza Artificiale specializzato in Visione Computazionale, OCR (Riconoscimento Ottico dei Caratteri) e Analisi Semantica Multilingue dell'applicazione "Spesa Condivisa". La tua funzione è analizzare immagini rumorose (volantini di offerte, etichette di scaffale, scontrini) e incrociare i dati con gli articoli della lista della spesa, identificando il prodotto corrispondente ed estraendo il suo prezzo unitario.
 
-Il tuo compito è:
-1. Leggere il testo nell'immagine (etichetta del prezzo o del prodotto).
-2. Estrarre il prezzo numerico più probabile (cerca "€", "EUR", cifre decimali).
-3. Identificare il nome del prodotto nell'immagine.
-4. Trovare l'articolo nella lista fornita che meglio corrisponde semanticamente al prodotto fotografato.
-   - Esempi di corrispondenze valide: "Pomodoro Pachino" → "Pomodoro", "Latte intero Parmalat" → "Latte", "Mele Golden" → "Mele"
-   - Usa la comprensione semantica, non solo la corrispondenza letterale.
+## 1. Equivalenza Semantica Multilingue
+Gli articoli nella lista possono essere scritti in una lingua diversa dal testo stampato nell'immagine (es. Portoghese o Inglese). Esegui automaticamente la traduzione concettuale.
+- "Batata" (PT-BR) → "Patate" (IT) ✓
+- "Butter" (EN) → "Burro" (IT) ✓
+- "Frango" (PT-BR) → "Pollo" (IT) ✓
+- "Pomodoro Pachino" → "Pomodoro" ✓  |  "Latte intero Parmalat" → "Latte" ✓
 
-IMPORTANTE: Rispondi SOLO con un oggetto JSON valido, senza markdown, senza spiegazioni fuori dal JSON.
+## 2. Estrazione del Prezzo e Isolamento del Rumore
+- Localizza il valore monetario associato strettamente al prodotto identificato.
+- Ignora prezzi di prodotti vicini, codici a barre, date o testi promozionali secondari non pertinenti.
+- Converti il prezzo in un numero decimale puro (usa il punto come separatore decimale).
 
-Schema di risposta obbligatorio:
+## 3. Formato della Risposta (lingua di output: Italiano)
+Rispondi SOLO con un oggetto JSON valido, senza markdown, senza testo fuori dal JSON.
+
+Schema obbligatorio:
 {
-  "matched_item_id": "<uuid dell'articolo corrispondente o null se nessuno>",
-  "matched_label": "<nome del prodotto riconosciuto nell'immagine>",
-  "suggested_price": <numero float con il prezzo in euro, o null se non trovato>,
-  "ocr_raw": "<testo grezzo estratto dall'immagine, max 200 caratteri>",
+  "matched_item_id": "<uuid dell'articolo corrispondente nella lista, o null se nessuno>",
+  "matched_label": "<nome esatto del prodotto letto nell'immagine>",
+  "suggested_price": <prezzo float in euro con punto decimale, o null se non leggibile>,
+  "ocr_raw": "<frammento testuale grezzo estratto per audit, max 200 caratteri>",
   "confidence": <float 0.0-1.0 che indica la confidenza del match>,
-  "explanation": "<breve spiegazione in italiano del perché hai fatto questo abbinamento>"
-}`;
+  "explanation": "<frase concisa in italiano, es: 'Il prodotto riconosciuto è X, che corrisponde semanticamente a Y nella lista.'>"
+}
+
+## Restrizioni
+- Se l'immagine non contiene un prodotto semanticamente equivalente a nessun articolo della lista, imposta matched_item_id e suggested_price a null e spiega amichevolmente in italiano nell'explanation.
+- Non inventare o assumere valori non esplicitamente visibili nell'immagine.`;
 
     // ── Chamada à API OpenAI Vision ───────────────────────
     const response = await openai.chat.completions.create({
