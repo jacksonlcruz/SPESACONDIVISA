@@ -162,6 +162,26 @@ export function useRealtimeList(listId: string) {
     if (dbError) throw new Error(dbError.message);
   }, []);
 
+  // Atualiza quantidade e/ou preço unitário de um item
+  const updateItem = useCallback(
+    async (
+      itemId: string,
+      updates: { quantity?: number; unit_price?: number | null }
+    ) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const patch: any = {};
+      if (updates.quantity !== undefined) patch.quantity = updates.quantity;
+      if (updates.unit_price !== undefined) patch.unit_price = updates.unit_price;
+      if (Object.keys(patch).length === 0) return;
+      const { error: dbError } = await supabase
+        .from("list_items")
+        .update(patch)
+        .eq("id", itemId);
+      if (dbError) throw new Error(dbError.message);
+    },
+    []
+  );
+
   // Finaliza itens (muda status para 'purchased') — base do fluxo de compra
   const finalizeItems = useCallback(async (itemIds: string[]) => {
     if (itemIds.length === 0) return;
@@ -183,6 +203,7 @@ export function useRealtimeList(listId: string) {
     checkItem,
     uncheckItem,
     deleteItem,
+    updateItem,
     finalizeItems,
     refetch: fetchItems,
   };

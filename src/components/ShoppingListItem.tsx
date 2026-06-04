@@ -13,6 +13,8 @@ interface ShoppingListItemProps {
   onCheck: (item: ListItem) => void;
   onUncheck: (itemId: string) => void;
   onDelete: (itemId: string) => void;
+  /** Clique no card abre o modal de edição */
+  onEdit: (item: ListItem) => void;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -27,6 +29,7 @@ const ShoppingListItem = memo(function ShoppingListItem({
   onCheck,
   onUncheck,
   onDelete,
+  onEdit,
 }: ShoppingListItemProps) {
   const handleToggle = () => {
     if (!canEdit) return;
@@ -37,10 +40,16 @@ const ShoppingListItem = memo(function ShoppingListItem({
     }
   };
 
+  const handleCardClick = () => {
+    if (!canEdit) return;
+    onEdit(item);
+  };
+
   return (
     <div
+      onClick={handleCardClick}
       className={clsx(
-        "group flex items-center gap-3 px-4 py-4 mx-3 rounded-xl shadow-lg transition-colors",
+        "group flex items-center gap-3 px-4 py-4 mx-3 rounded-xl shadow-lg transition-colors cursor-pointer active:scale-[0.99]",
         item.is_checked ? "bg-[#1c1c1c]/80" : "bg-[#1a1a1a]",
         "border border-zinc-800/60"
       )}

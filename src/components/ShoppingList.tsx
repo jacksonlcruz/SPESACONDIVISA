@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2, ScanLine } from "lucide-react";
+import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2, Camera } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -11,6 +11,7 @@ import ShoppingListItem from "./ShoppingListItem";
 import TotalDisplay from "./TotalDisplay";
 import PriceModal from "./PriceModal";
 import GeneralScanner from "./GeneralScanner";
+import EditItemModal from "./EditItemModal";
 import type { ListItem, AiMatchResult, ScanAnyResult } from "@/types";
 
 interface ShoppingListProps {
@@ -38,13 +39,16 @@ export default function ShoppingList({
 }: ShoppingListProps) {
   const router = useRouter();
 
-  const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, finalizeItems, refetch } =
+  const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, updateItem, finalizeItems, refetch } =
     useRealtimeList(listId);
 
   const totals = useShoppingCalculator(items);
 
   // Estado do modal de preço
   const [modalItem, setModalItem] = useState<ListItem | null>(null);
+
+  // Estado do modal de edição de item (clique no card)
+  const [editItem, setEditItem] = useState<ListItem | null>(null);
 
   // Estado do campo de novo item
   const [newItemName, setNewItemName]   = useState("");
@@ -366,6 +370,34 @@ export default function ShoppingList({
     }
   }, [scanResult, isAddingScanned, items, listId]);
 
+  // ── Salvar edição de item (EditItemModal) ────────────────
+  const handleEditSave = useCallback(
+    async (itemId: string, quantity: number, unitPrice: number | null) => {
+      try {
+        await updateItem(itemId, { quantity, unit_price: unitPrice });
+        toast.success("Articolo aggiornato ✓");
+      } catch {
+        toast.error("Errore nel salvataggio");
+        throw new Error("Errore");
+      }
+    },
+    [updateItem]
+  );
+
+  // ── Remover do carrinho (do EditItemModal) ───────────────
+  const handleEditUncheck = useCallback(
+    async (itemId: string) => {
+      try {
+        await uncheckItem(itemId);
+        toast.success("Rimosso dal carrello");
+      } catch {
+        toast.error("Errore");
+        throw new Error("Errore");
+      }
+    },
+    [uncheckItem]
+  );
+
   // ──────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────
@@ -431,17 +463,6 @@ export default function ShoppingList({
             </button>
           )}
 
-          {/* Botão Scanner Geral */}
-          {canEdit && (
-            <button
-              onClick={() => setShowGeneralScanner(true)}
-              aria-label="Scanner generale"
-              className="flex-shrink-0 p-2 rounded-xl hover:bg-zinc-900 transition-colors"
-            >
-              <ScanLine size={18} className="text-zinc-400 hover:text-[#deff9a] transition-colors" />
-            </button>
-          )}
-
           {/* Botão Excluir Lista */}
           {canEdit && (
             <button
@@ -492,6 +513,7 @@ export default function ShoppingList({
                       onCheck={handleCheckClick}
                       onUncheck={uncheckItem}
                       onDelete={handleDelete}
+                      onEdit={setEditItem}
                     />
                   ))}
                 </div>
@@ -513,6 +535,7 @@ export default function ShoppingList({
                       onCheck={handleCheckClick}
                       onUncheck={uncheckItem}
                       onDelete={handleDelete}
+                      onEdit={setEditItem}
                     />
                   ))}
                 </div>
@@ -559,6 +582,15 @@ export default function ShoppingList({
                 maxLength={120}
                 autoComplete="off"
               />
+              {/* Botão Scanner Geral (Câmera) */}
+              <button
+                type="button"
+                onClick={() => setShowGeneralScanner(true)}
+                aria-label="Scanner generale"
+                className="flex-shrink-0 w-11 h-11 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl flex items-center justify-center transition-all active:scale-95"
+              >
+                <Camera size={18} className="text-zinc-400 hover:text-[#deff9a] transition-colors" />
+              </button>
               <button
                 type="submit"
                 disabled={!newItemName.trim() || isAdding}
@@ -627,7 +659,7 @@ export default function ShoppingList({
                   {isComplete
                     ? "Vuoi completare e archiviare questa lista? Tutti gli articoli saranno salvati nello storico."
                     : "Ci sono ancora articoli da comprare. Vuoi finalizzare il pagamento solo per gli articoli attualmente nel carrello e mantenere gli altri per la prossima spesa?"}
-          or      </p>
+                </p>
 
                 {/* Botões */}
                 <div className="flex gap-3">
@@ -777,6 +809,20 @@ export default function ShoppingList({
             </form>
           </div>
         </>
+      )}
+
+      {/* Modal de edição de item (clique no card) */}
+      {editItem && (
+        <EditItemModal
+          item={editItem}
+          onSave={handleEditSave}
+          onUncheck={handleEditUncheck}
+          onDelete={(id) => {
+            deleteItem(id);
+            setEditItem(null);
+          }}
+          onClose={() => setEditItem(null)}
+        />
       )}
 
       {/* Scanner Geral */}
