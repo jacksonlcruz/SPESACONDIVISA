@@ -53,6 +53,7 @@ export default function PriceModal({ item, listItems, currentCartTotal, onConfir
   const handleAiMatch = (result: AiMatchResult) => {
     setAiData(result);
     setShowCamera(false);
+    setMode("manual");
     if (result.suggested_price) {
       setUnitPrice(result.suggested_price.toFixed(2));
     }
