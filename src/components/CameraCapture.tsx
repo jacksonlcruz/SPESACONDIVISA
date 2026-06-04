@@ -30,39 +30,55 @@ export default function CameraCapture({ listItems, onMatch, onClose }: CameraCap
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // Converte para base64
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const base64 = ev.target?.result as string;
+      // ── Compressão via Canvas (evita ECONNRESET em fotos grandes) ──
+      const compressImage = (f: File): Promise<string> =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(f);
+          img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            const MAX_WIDTH = 1200;
+            const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+            const canvas = document.createElement("canvas");
+            canvas.width  = Math.round(img.width  * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Canvas non disponibile"));
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.75));
+          };
+          img.onerror = () => reject(new Error("Errore nel caricamento immagine"));
+          img.src = objectUrl;
+        });
+
+      setStatus("processing");
+      setErrorMsg(null);
+
+      try {
+        const base64 = await compressImage(file);
         setPreview(base64);
-        setStatus("processing");
-        setErrorMsg(null);
 
-        try {
-          const res = await fetch("/api/ai/match-item", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              imageBase64: base64,
-              // Enviamos apenas id + nome para não expor dados sensíveis
-              listItems: listItems.map((i) => ({ id: i.id, name: i.name })),
-            }),
-          });
+        const res = await fetch("/api/ai/match-item", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: base64,
+            listItems: listItems.map((i) => ({ id: i.id, name: i.name })),
+          }),
+        });
 
-          if (!res.ok) {
-            const body = await res.json();
-            throw new Error(body.error ?? "Errore del server");
-          }
-
-          const result: AiMatchResult = await res.json();
-          setStatus("done");
-          onMatch(result, base64);
-        } catch (err) {
-          setStatus("error");
-          setErrorMsg(err instanceof Error ? err.message : "Errore sconosciuto");
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error ?? "Errore del server");
         }
-      };
-      reader.readAsDataURL(file);
+
+        const result: AiMatchResult = await res.json();
+        setStatus("done");
+        onMatch(result, base64);
+      } catch (err) {
+        setStatus("error");
+        setErrorMsg(err instanceof Error ? err.message : "Errore sconosciuto");
+      }
     },
     [listItems, onMatch]
   );
