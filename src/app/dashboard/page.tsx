@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LogOut, BarChart3 } from "lucide-react";
 import ListsDashboard from "./ListsDashboard";
+import DashboardHeader from "./DashboardHeader";
 import type { Database } from "@/lib/database.types";
 import CreateListButton from "./CreateListButton";
 import StoricoDashboard from "./StoricoDashboard";
@@ -94,34 +94,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-surface-900">
       {/* Header */}
-      <header className="bg-surface-800 px-4 pt-12 pb-5 border-b border-surface-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">Benvenuto/a</p>
-            <h1 className="text-2xl font-bold text-zinc-100 mt-0.5">Le mie liste</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <a
-              href="/dashboard/stats"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-surface-700 transition-colors text-zinc-400 text-sm font-medium"
-              aria-label="Statistiche"
-            >
-              <BarChart3 size={16} />
-              <span className="text-xs hidden sm:inline">Statistiche</span>
-            </a>
-            <form action="/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-surface-700 transition-colors text-zinc-400 text-sm font-medium"
-                aria-label="Esci"
-              >
-                <LogOut size={16} />
-                <span className="text-xs">Esci</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
 
       {/* Conteúdo */}
       <main className="flex-1 px-4 py-5 space-y-3 pb-28">
