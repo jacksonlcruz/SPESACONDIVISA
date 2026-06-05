@@ -1,4 +1,4 @@
-// Callback OAuth — Supabase redireciona aqui após login social
+// Callback OAuth — Supabase redireciona aqui após login social (Google / Apple)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -6,8 +6,8 @@ import type { Database } from "@/lib/database.types";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const code  = searchParams.get("code");
-  const next  = searchParams.get("next") ?? "/dashboard";
+  const code = searchParams.get("code");
+  const next = searchParams.get("next") ?? "/dashboard";
 
   // Usa variável de ambiente como base URL.
   // Dentro do Docker, request.url resolve para localhost:80,
@@ -39,6 +39,42 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // ── Upsert do perfil (com fallback para Apple) ─────────
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          // Fallback para o nome: Apple só envia full_name no PRIMEIRO login.
+          // Em logins subsequentes, user_metadata.full_name vem vazio/ausente.
+          const rawName =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            null;
+
+          const fullName =
+            rawName ||
+            (user.email ? user.email.split("@")[0] : null) ||
+            "Utente Apple";
+
+          const avatarUrl = user.user_metadata?.avatar_url ?? null;
+
+          await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              full_name: fullName,
+              avatar_url: avatarUrl,
+              email: user.email!,
+            },
+            { onConflict: "id" }
+          );
+        }
+      } catch (profileErr) {
+        // Não bloqueia o fluxo — perfil é não-crítico
+        console.error("[callback] Erro ao upsert do perfil:", profileErr);
+      }
+
       return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }
