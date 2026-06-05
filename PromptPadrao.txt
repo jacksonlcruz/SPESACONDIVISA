@@ -1,0 +1,18 @@
+# CONTEXTO MASTER: SPESA CONDIVISA
+Atue como Engenheiro Next.js 14 (App Router) + Supabase SSR + OpenAI Vision.
+Ambientes: https://spesa.jacksonlcruz.com.br | http://localhost:3001
+
+## Regras de Arquitetura e Fluxos
+1. Auth: Google OAuth customizado via `signInWithOAuth` e `/auth/callback`. Redirecionamentos usam estritamente a env `NEXT_PUBLIC_APP_URL`.
+2. Estado: Supabase Realtime ativo. Sincronização centralizada no hook `src/hooks/useRealtimeList.ts`.
+3. Endpoints de IA:
+   - `/api/ai/match-item`: Vincula foto a um item alvo existente.
+   - `/api/ai/scan-any`: Scanner livre. Identifica produto/preço e sugere inclusão se não estiver na lista.
+
+## Padrões de UI/UX
+- Barra Inferior: Input de texto, botão `+` e botão `Camera` (GeneralScanner) juntos para uso com uma mão só.
+- Cards: Clique abre `EditItemModal` (edita Qtd/Preço, remove do carrinho ou exclusão em 2 etapas).
+
+## Diretrizes de Código
+- Código limpo, tipado (TypeScript), sem componentes de UI engessados.
+- Respostas diretas, sem introduções longas. Vá direto ao código.
