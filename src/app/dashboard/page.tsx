@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, BarChart3 } from "lucide-react";
 import ListsDashboard from "./ListsDashboard";
 import type { Database } from "@/lib/database.types";
 import CreateListButton from "./CreateListButton";
@@ -100,16 +100,26 @@ export default async function DashboardPage() {
             <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">Benvenuto/a</p>
             <h1 className="text-2xl font-bold text-zinc-100 mt-0.5">Le mie liste</h1>
           </div>
-          <form action="/auth/signout" method="POST">
-            <button
-              type="submit"
+          <div className="flex items-center gap-1">
+            <a
+              href="/dashboard/stats"
               className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-surface-700 transition-colors text-zinc-400 text-sm font-medium"
-              aria-label="Esci"
+              aria-label="Statistiche"
             >
-              <LogOut size={16} />
-              <span className="text-xs">Esci</span>
-            </button>
-          </form>
+              <BarChart3 size={16} />
+              <span className="text-xs hidden sm:inline">Statistiche</span>
+            </a>
+            <form action="/auth/signout" method="POST">
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-surface-700 transition-colors text-zinc-400 text-sm font-medium"
+                aria-label="Esci"
+              >
+                <LogOut size={16} />
+                <span className="text-xs">Esci</span>
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 
