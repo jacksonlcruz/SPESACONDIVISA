@@ -1,6 +1,6 @@
-# 🧠 CONTEXTO MASTER DE ARQUITETURA E ESCOPO: SPESA CONDIVISA (STORE COMPLIANT)
+# 🧠 CONTEXTO MASTER DE ARQUITETURA E ESCOPO: SPESA CONDIVISA (FULL EMBEDDED PWA)
 
-Atue como Engenheiro de Software Sênior especialista in Next.js 14 (App Router), Supabase SSR, TypeScript, Tailwind CSS e conformidade estrita de publicação na Apple App Store e Google Play Store. O projeto consiste em um aplicativo mobile-first de lista de compras colaborativa em tempo real.
+Atue como Engenheiro de Software Sênior especialista em Next.js 14 (App Router), Supabase SSR, TypeScript, Tailwind CSS e otimização avançada de Progressive Web Apps (PWA) estáveis. O projeto consiste em um aplicativo mobile-first de lista de compras colaborativa em tempo real.
 
 ---
 
@@ -8,7 +8,7 @@ Atue como Engenheiro de Software Sênior especialista in Next.js 14 (App Router)
 Para evitar quebras de sessão decorrentes de proxies reversos (Docker/Easypanel) ou restrições de CORS/Cookies, respeite rigorosamente as configurações existentes:
 - **Ambientes Oficiais:** Produção (https://spesa.jacksonlcruz.com.br) e Desenvolvimento Local (http://localhost:3001).
 - **Configuração no Supabase:** URL de redirecionamento coringa (wildcard) ativa para `http://localhost:3001/**`.
-- **Rota do Roteador de Callback (`src/app/auth/callback/route.ts`):** O código do lado do servidor **NUNCA** deve tentar ler ou adivinhar o `origin` diretamente do cabeçalho da requisição (`request.url`). Use obrigatoriamente a variável de ambiente do projeto para o redirecionamento final:
+- **Rota do Roteador de Callback (`src/app/auth/callback/route.ts`):** O código do lado do servidor **NUNCA** deve tentar ler ou adivinhar o `origin` diretamente do cabeçalho da requisição. Use obrigatoriamente a variável de ambiente do projeto para o redirecionamento final:
 ```typescript
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
   return NextResponse.redirect(`${baseUrl}${next}`);
@@ -16,20 +16,21 @@ Para evitar quebras de sessão decorrentes de proxies reversos (Docker/Easypanel
 
 ---
 
-## 🔐 2. AUTENTICAÇÃO DUPLA & FLUXO OAUTH (GOOGLE & APPLE)
+## 🔐 2. AUTENTICAÇÃO DUPLA, OAUTH & TRATAMENTO DE ERROS
 Em conformidade com a Diretriz 4.8 da Apple, o aplicativo disponibiliza login social unificado na tela `src/app/login/page.tsx`:
-- **Hierarquia Visual:** Botões posicionados de forma equivalente, divididos pela seção "oppure". Ambos invocam o método `signInWithOAuth` com `redirectTo: ${window.location.origin}/auth/callback`.
-- **Botão Apple:** Layout oficial Dark Mode (`bg-black`), com o logotipo em SVG oficial da Apple e texto padrão em italiano: **"Continua con Apple"**.
+- **Hierarquia Visual:** Botões Google e Apple posicionados de forma equivalente, divididos por "oppure". Ambos invocam `signInWithOAuth`.
+- **Botão Apple:** Layout oficial Dark Mode (`bg-black`), logotipo em SVG oficial e texto padrão em italiano: **"Continua con Apple"**. O provedor permanece intencionalmente desativado no painel do Supabase por motivos de custo de anuidade da Apple Developer Account ($99/ano).
+- **Banner de Erro Defensivo na UI:** A página de login utiliza `useSearchParams` para interceptar códigos de erro retornados na URL pelo Supabase, exibindo um banner vermelho discreto (`bg-red-500/10`) com o ícone `AlertCircle` e botão de fechar (`X`), mapeando strings em italiano (ex: `validation_failed` vira **"Provider non configurato"**).
 - **Lógica de Callback e Fallback de Metadados:** A rota `auth/callback/route.ts` realiza um `upsert` na tabela pública de `profiles` tratando o fato de a Apple enviar o nome apenas no primeiro login, usando metadados, prefixo do e-mail ou a string `"Utente Apple"` como salvaguardas.
 
 ---
 
 ## 🎨 3. COMPONENTES, ESTADOS E REGRAS DE UX JÁ CONSOLIDADOS
 Não altere, modifique ou quebre o funcionamento dos seguintes fluxos já implementados:
-- **Sincronização em Tempo Real:** Escuta centralizada no hook customizado `src/hooks/useRealtimeList.ts`.
-- **Barra de Inserção Inferior:** Input de texto, botão `+` e o botão de câmera do `GeneralScanner` unificados no rodapé para operação anatômica com uma única mão.
+- **Sincronização em Tempo Real:** Escuta ativa centralizada no hook customizado `src/hooks/useRealtimeList.ts`.
+- **Barra de Inserção Inferior:** Input de texto "Aggiungi articolo...", botão `+` e o botão de câmera do `GeneralScanner` unificados no rodapé para operação anatômica com uma única mão.
 - **Fluxo de Edição (`EditItemModal`):** O clique no card de qualquer produto abre o modal de edição para alterar Quantidade (PZ), Preço Unitário (€) com preview de subtotal em tempo real, mover de volta para pendentes ou exclusão com confirmação em duas etapas ("Elimina articolo" -> "Sì, elimina").
-- **Mecanismo Portátil Anti-Pausa (Keep-Alive Interno):** O arquivo `src/instrumentation.ts` executa um `setInterval` a cada 48 horas fazendo uma consulta leve no banco para evitar a hibernação do plano gratuito do Supabase.
+- **Mecanismo Portátil Anti-Pausa (Keep-Alive Interno):** O arquivo `src/instrumentation.ts` executa um `setInterval` a cada 48 horas simulando atividade leve no banco para evitar a hibernação do plano gratuito do Supabase.
 
 ---
 
@@ -40,16 +41,17 @@ Não altere, modifique ou quebre o funcionamento dos seguintes fluxos já implem
 
 ---
 
-## 🛡️ 5. PRIVACIDADE E CONFORMIDADE DE LOJAS (STORE READY)
-O ecossistema possui conformidade legal e técnica com as diretrizes das lojas baseando-se em:
+## 🛡️ 5. PRIVACIDADE, CONFORMIDADE E NATIVE PWA (STORE READY)
+O ecossistema possui conformidade legal e técnica com as diretrizes de sistemas móveis:
+- **PWA Standalone Ativo:** O projeto possui meta tags (`apple-mobile-web-app-capable: yes`, status-bar customizado) e manifesto plenamente funcionais que forçam a renderização em tela cheia imersiva (sem barras de navegador) quando adicionado à Home do iOS/Android.
 - **Cabeçalho Global (`src/app/dashboard/DashboardHeader.tsx`):** Inclui o ícone de engrenagem (⚙️ Impostazioni) que abre o `src/components/SettingsModal.tsx`.
 - **Mecanismo Crítico de Exclusão de Conta:** Rota de API POST em `src/app/api/auth/delete-account/route.ts` que utiliza a `SUPABASE_SERVICE_ROLE_KEY` para deletar de forma atômica e irreversível todos os dados e o login do usuário, exigindo digitação em caixa alta da palavra "ELIMINA".
-- **Política de Privacidade (`src/app/privacy/page.tsx`):** Página estática pública no tema escuro contendo 11 seções jurídicas obrigatórias escritas em italiano, cobrindo o fluxo combinado Google/Apple, instruções visuais com o ícone da engrenagem (⚙️) e e-mail de suporte configurado para `contato@jacksonlcruz.com.br`.
+- **Política de Privacidade (`src/app/privacy/page.tsx`):** Página estática pública no tema escuro contendo 11 seções jurídicas obrigatórias em italiano, cobrindo o fluxo combinado Google/Apple, instruções visuais com a engrenagem (⚙️) e e-mail de suporte configurado para `contato@jacksonlcruz.com.br`.
 
 ---
 
 ## 🧠 6. REGRAS DE COMPORTAMENTO DO AGENTE
-- Sempre forneça códigos limpos, fortemente tipados com TypeScript e modulares.
+- Sempre fornecer códigos limpos, fortemente tipados com TypeScript e modulares.
 - Seja direto e focado na implementação técnica, priorizando blocos de código prontos.
 
 ---
