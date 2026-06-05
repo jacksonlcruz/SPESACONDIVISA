@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, X } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
@@ -14,6 +15,46 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [oauthBannerDismissed, setOauthBannerDismissed] = useState(false);
+
+  // ── Tratamento de erros OAuth via query params ─────────────
+  const oauthError = useMemo(() => {
+    const code = searchParams.get("error_code");
+    const desc = searchParams.get("error_description");
+    if (!code && !desc) return null;
+    // Mapeia códigos conhecidos para mensagens em italiano
+    if (code === "validation_failed" || desc?.includes("provider is not enabled")) {
+      return {
+        title: "Provider non configurato",
+        message:
+          "Il provider di accesso selezionato non è stato ancora abilitato. " +
+          "Contatta l'amministratore o utilizza un altro metodo di accesso.",
+      };
+    }
+    if (desc?.includes("bad_verification_code") || desc?.includes("invalid_grant")) {
+      return {
+        title: "Sessione scaduta",
+        message: "La tua sessione è scaduta. Per favore, riprova ad accedere.",
+      };
+    }
+    if (desc?.includes("expired") || desc?.includes("timeout")) {
+      return {
+        title: "Tempo scaduto",
+        message: "Il tempo per completare l'accesso è scaduto. Riprova.",
+      };
+    }
+    return {
+      title: "Errore di autenticazione",
+      message: desc || code || "Si è verificato un errore durante l'accesso. Riprova.",
+    };
+  }, [searchParams]);
+
+  // Sincroniza erro OAuth com o estado (evita flicker no SSR)
+  useEffect(() => {
+    if (oauthError && !oauthBannerDismissed) {
+      setError(oauthError.message);
+    }
+  }, [oauthError, oauthBannerDismissed]);
 
   // Listener: redireciona ao logar
   useEffect(() => {
@@ -108,6 +149,35 @@ export default function LoginPage() {
           La tua lista della spesa collaborativa
         </p>
       </div>
+
+      {/* Banner de erro OAuth (exibido quando redirect traz erro na URL) */}
+      {oauthError && !oauthBannerDismissed && (
+        <div className="w-full max-w-sm mb-4 bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-3 animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <AlertCircle size={16} className="text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-red-400">
+                {oauthError.title}
+              </p>
+              <p className="text-xs text-red-300/80 mt-1 leading-relaxed">
+                {oauthError.message}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setOauthBannerDismissed(true);
+                setError(null);
+              }}
+              className="p-1 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0"
+              aria-label="Chiudi avviso"
+            >
+              <X size={16} className="text-red-400" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Conteúdo */}
       <div className="w-full max-w-sm space-y-4">
