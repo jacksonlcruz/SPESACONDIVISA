@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 // ── Tipos ────────────────────────────────────────────────────────────────
 type OwnList = {
@@ -28,6 +29,7 @@ interface Props {
 // ListsDashboard — exibe as listas com estado reativo (Realtime + estado local)
 // ─────────────────────────────────────────────────────────────────────────
 export default function ListsDashboard({ initialOwnLists, initialSharedLists }: Props) {
+  const { t, locale } = useTranslation();
   const [ownLists, setOwnLists] = useState<OwnList[]>(initialOwnLists);
   const [sharedLists, setSharedLists] = useState<SharedListItem[]>(initialSharedLists);
 
@@ -41,7 +43,6 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
         { event: "DELETE", schema: "public", table: "lists" },
         (payload) => {
           const deletedId = (payload.old as { id: string }).id;
-          // Remove a lista deletada do estado local (sem precisar de F5)
           setOwnLists((prev) => prev.filter((l) => l.id !== deletedId));
           setSharedLists((prev) => prev.filter((l) => l.list_id !== deletedId));
         }
@@ -54,7 +55,6 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
           const newList = payload.new as OwnList & { is_archived?: boolean; owner_id?: string };
           if (newList.is_archived) return;
           setOwnLists((prev) => {
-            // Evita duplicatas caso o initialOwnLists já traga a lista
             if (prev.some((l) => l.id === newList.id)) return prev;
             return [newList, ...prev];
           });
@@ -66,7 +66,6 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
         { event: "UPDATE", schema: "public", table: "lists" },
         (payload) => {
           const updated = payload.new as OwnList;
-          // Atualiza o título/emoji no estado local imediatamente
           setOwnLists((prev) =>
             prev.map((l) =>
               l.id === updated.id
@@ -106,7 +105,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
       {ownLists.length > 0 && (
         <>
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1">
-            Le mie liste ({ownLists.length})
+            {t.dashboard.myLists} ({ownLists.length})
           </p>
           {ownLists.map((list) => (
             <Link
@@ -120,7 +119,8 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-zinc-100 truncate text-base">{list.title}</p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Aggiornata {new Date(list.updated_at).toLocaleDateString("it-IT")}
+                  {t.dashboard.updated}{" "}
+                  {new Date(list.updated_at).toLocaleDateString(locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT")}
                 </p>
               </div>
               <span className="text-zinc-600 text-lg">›</span>
@@ -133,7 +133,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
       {sharedLists.length > 0 && (
         <>
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider pt-2 px-1">
-            Condivise con me ({sharedLists.length})
+            {t.dashboard.sharedWithMe} ({sharedLists.length})
           </p>
           {sharedLists.map((share) => {
             const list = share.lists;
@@ -150,7 +150,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-zinc-100 truncate text-base">{list.title}</p>
                   <p className="text-xs text-accent font-medium mt-0.5">
-                    👥 Condivisa · {share.role === "editor" ? "Editor" : "Visualizzatore"}
+                    👥 {t.dashboard.shared} · {share.role === "editor" ? t.dashboard.editor : t.dashboard.viewer}
                   </p>
                 </div>
                 <span className="text-zinc-600 text-lg">›</span>
@@ -167,9 +167,9 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
             🛍️
           </div>
           <div>
-            <p className="text-zinc-200 font-semibold">Nessuna lista ancora</p>
+            <p className="text-zinc-200 font-semibold">{t.dashboard.noListsYet}</p>
             <p className="text-zinc-500 text-sm mt-1">
-              Tocca il pulsante + per crearne una!
+              {t.dashboard.tapPlusToCreate}
             </p>
           </div>
         </div>

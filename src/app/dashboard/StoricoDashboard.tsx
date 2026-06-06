@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
+import { useTranslation } from "@/contexts/LanguageContext";
 import toast from "react-hot-toast";
 
 // ── Tipos ────────────────────────────────────────────────────────────────
 type SpesaGroup = {
-  key: string;          // "${dateKey}_${listId}"
+  key: string;
   dateLabel: string;
   listId: string;
   listTitle: string;
@@ -37,6 +38,7 @@ interface StoricoDashboardProps {
 // StoricoDashboard — renderiza cards clicáveis + bottom sheet de detalhes
 // ──────────────────────────────────────────────────────────────────────────
 export default function StoricoDashboard({ groups, allItems }: StoricoDashboardProps) {
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const [selectedGroup, setSelectedGroup] = useState<SpesaGroup | null>(null);
   const [isCloning, setIsCloning] = useState(false);
@@ -55,7 +57,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
     setIsCloning(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non autenticato");
+      if (!user) throw new Error(t.dashboard.notAuthenticated);
 
       // 1. Cria nova lista com o título/emoji originais
       const { data: newList, error: listError } = await supabase
@@ -67,9 +69,9 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
         })
         .select("id")
         .single();
-      if (listError || !newList) throw listError ?? new Error("Errore creazione lista");
+      if (listError || !newList) throw listError ?? new Error(t.dashboard.errorCreatingList);
 
-      // 2. Insere os itens na nova lista — status limpo, quantidades e preços resetados
+      // 2. Insere os itens na nova lista
       const itemsToInsert = groupItems.map((item, idx) => ({
         list_id: newList.id,
         name: item.name,
@@ -88,16 +90,18 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
         if (itemsError) throw itemsError;
       }
 
-      toast.success("Lista clonata con successo! 🎉");
+      toast.success(t.dashboard.cloneSuccess);
       router.push(`/lista/${newList.id}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Errore sconosciuto";
-      toast.error(`Errore: ${msg}`);
+      const msg = err instanceof Error ? err.message : t.dashboard.unknownError;
+      toast.error(`${t.dashboard.cloneError} ${msg}`);
       setIsCloning(false);
     }
-  }, [selectedGroup, isCloning, groupItems, router]);
+  }, [selectedGroup, isCloning, groupItems, router, t]);
 
   if (groups.length === 0) return null;
+
+  const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT";
 
   return (
     <>
@@ -105,7 +109,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
       <div className="flex items-center gap-2 pt-4 pb-1 px-1">
         <span className="text-lg">📜</span>
         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-          Storico Spese
+          {t.dashboard.storicoSpese}
         </p>
       </div>
 
@@ -125,17 +129,18 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-zinc-200 truncate text-sm">{group.listTitle}</p>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {group.itemCount} {group.itemCount === 1 ? "articolo acquistato" : "articoli acquistati"}
+                {group.itemCount}{" "}
+                {group.itemCount === 1 ? t.dashboard.articlePurchased : t.dashboard.articlesPurchased}
               </p>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-base font-bold text-[#deff9a]">
-                {group.total.toLocaleString("it-IT", {
+                {group.total.toLocaleString(dateLocale, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{" "}€
               </p>
-              <p className="text-xs text-zinc-600 mt-0.5">Tocca per dettagli</p>
+              <p className="text-xs text-zinc-600 mt-0.5">{t.dashboard.tapForDetails}</p>
             </div>
           </div>
         </button>
@@ -161,7 +166,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             <div className="flex items-start justify-between px-5 pt-2 pb-3 flex-shrink-0">
               <div>
                 <p className="text-xs text-zinc-500 font-medium mb-1">
-                  📜 Storico · {selectedGroup.dateLabel}
+                  📜 {t.dashboard.storicoSpese} · {selectedGroup.dateLabel}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{selectedGroup.listEmoji}</span>
@@ -173,7 +178,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
               <button
                 onClick={() => setSelectedGroup(null)}
                 disabled={isCloning}
-                aria-label="Chiudi"
+                aria-label={t.dashboard.close}
                 className="p-2 rounded-full hover:bg-zinc-800 transition-colors flex-shrink-0 mt-1"
               >
                 <X size={20} className="text-zinc-400" />
@@ -184,7 +189,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             <div className="flex-1 overflow-y-auto px-5 pb-2 space-y-2">
               {groupItems.length === 0 ? (
                 <p className="text-sm text-zinc-500 text-center py-6">
-                  Nessun dettaglio disponibile.
+                  {t.dashboard.noDetails}
                 </p>
               ) : (
                 groupItems.map((item) => {
@@ -212,9 +217,9 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             {/* Rodapé: total + botão clonar */}
             <div className="flex-shrink-0 border-t border-zinc-800 px-5 pt-4 pb-8">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-zinc-400">Totale spesa</span>
+                <span className="text-sm text-zinc-400">{t.dashboard.totalSpesa}</span>
                 <span className="text-xl font-bold text-[#deff9a]">
-                  {selectedGroup.total.toLocaleString("it-IT", {
+                  {selectedGroup.total.toLocaleString(dateLocale, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}{" "}€
@@ -229,10 +234,10 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
                 {isCloning ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    Clonazione in corso…
+                    {t.dashboard.cloning}
                   </>
                 ) : (
-                  "🔄 Copia come nuova lista"
+                  t.dashboard.copyAsNewList
                 )}
               </button>
             </div>

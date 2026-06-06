@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { ShoppingCart, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 interface TotalDisplayProps {
   totalSpent: number;
@@ -29,6 +30,8 @@ const TotalDisplay = memo(function TotalDisplay({
   progress,
   pendingPriceCount,
 }: TotalDisplayProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-surface-800 border-b border-surface-700 px-4 py-3">
       {/* Linha principal */}
@@ -38,7 +41,7 @@ const TotalDisplay = memo(function TotalDisplay({
             <ShoppingCart size={16} className="text-accent" />
           </div>
           <div>
-            <p className="text-xs text-zinc-500 font-medium">Nel carrello</p>
+            <p className="text-xs text-zinc-500 font-medium">{t.list.inCart}</p>
             <p className="text-sm font-semibold text-zinc-200">
               {checkedCount}/{totalCount} articoli
             </p>
@@ -46,7 +49,7 @@ const TotalDisplay = memo(function TotalDisplay({
         </div>
 
         <div className="text-right">
-          <p className="text-xs text-zinc-500 font-medium">Totale speso</p>
+          <p className="text-xs text-zinc-500 font-medium">{t.list.totalSpesa}</p>
           <p className="text-2xl font-bold text-accent tabular-nums">
             {formatCurrency(totalSpent)}
           </p>
@@ -70,12 +73,12 @@ const TotalDisplay = memo(function TotalDisplay({
       <div className="flex items-center justify-between mt-1.5">
         <div className="flex items-center gap-1 text-xs text-zinc-500">
           <TrendingUp size={11} />
-          <span>Stima totale: {formatCurrency(grandTotal)}</span>
+          <span>{t.list.estimatedTotal}: {formatCurrency(grandTotal)}</span>
         </div>
 
         {pendingPriceCount > 0 && (
           <p className="text-xs text-amber-400 font-medium">
-            ⚠️ {pendingPriceCount} senza prezzo
+            ⚠️ {pendingPriceCount} {t.list.withoutPrice}
           </p>
         )}
       </div>

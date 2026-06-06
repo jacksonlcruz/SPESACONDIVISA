@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Loader2, AlertCircle, X } from "lucide-react";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -22,32 +24,30 @@ export default function LoginPage() {
     const code = searchParams.get("error_code");
     const desc = searchParams.get("error_description");
     if (!code && !desc) return null;
-    // Mapeia códigos conhecidos para mensagens em italiano
+    // Mapeia códigos conhecidos para mensagens i18n
     if (code === "validation_failed" || desc?.includes("provider is not enabled")) {
       return {
-        title: "Provider non configurato",
-        message:
-          "Il provider di accesso selezionato non è stato ancora abilitato. " +
-          "Contatta l'amministratore o utilizza un altro metodo di accesso.",
+        title: t.login.oauthNotConfigured.title,
+        message: t.login.oauthNotConfigured.message,
       };
     }
     if (desc?.includes("bad_verification_code") || desc?.includes("invalid_grant")) {
       return {
-        title: "Sessione scaduta",
-        message: "La tua sessione è scaduta. Per favore, riprova ad accedere.",
+        title: t.login.oauthSessionExpired.title,
+        message: t.login.oauthSessionExpired.message,
       };
     }
     if (desc?.includes("expired") || desc?.includes("timeout")) {
       return {
-        title: "Tempo scaduto",
-        message: "Il tempo per completare l'accesso è scaduto. Riprova.",
+        title: t.login.oauthTimeout.title,
+        message: t.login.oauthTimeout.message,
       };
     }
     return {
-      title: "Errore di autenticazione",
-      message: desc || code || "Si è verificato un errore durante l'accesso. Riprova.",
+      title: t.login.oauthGeneric.title,
+      message: desc || code || t.login.oauthGeneric.message,
     };
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   // Sincroniza erro OAuth com o estado (evita flicker no SSR)
   useEffect(() => {
@@ -71,16 +71,15 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     setError(null);
     try {
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      if (oauthError) throw oauthError;
-      // OAuth redireciona o usuário para o Google — não retorna aqui
+      if (oauthErr) throw oauthErr;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore con Google");
+      setError(err instanceof Error ? err.message : t.login.genericGoogleError);
       setIsGoogleLoading(false);
     }
   };
@@ -90,16 +89,15 @@ export default function LoginPage() {
     setIsAppleLoading(true);
     setError(null);
     try {
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      if (oauthError) throw oauthError;
-      // OAuth redireciona o usuário para a Apple — não retorna aqui
+      if (oauthErr) throw oauthErr;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore con Apple");
+      setError(err instanceof Error ? err.message : t.login.genericAppleError);
       setIsAppleLoading(false);
     }
   };
@@ -113,25 +111,25 @@ export default function LoginPage() {
     setIsEmailLoading(true);
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpErr } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
-        if (signUpError) throw signUpError;
-        setError("Controlla la tua email per confermare la registrazione!");
+        if (signUpErr) throw signUpErr;
+        setError(t.login.checkEmail);
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
-        if (signInError) throw signInError;
+        if (signInErr) throw signInErr;
         router.push("/dashboard");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore di autenticazione");
+      setError(err instanceof Error ? err.message : t.login.genericAuthError);
     } finally {
       setIsEmailLoading(false);
     }
@@ -144,13 +142,13 @@ export default function LoginPage() {
         <div className="w-20 h-20 bg-surface-700 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-5 shadow-lg">
           🛒
         </div>
-        <h1 className="text-4xl font-bold text-zinc-100">Spesa Condivisa</h1>
+        <h1 className="text-4xl font-bold text-zinc-100">{t.login.title}</h1>
         <p className="text-zinc-400 mt-2 text-base">
-          La tua lista della spesa collaborativa
+          {t.login.subtitle}
         </p>
       </div>
 
-      {/* Banner de erro OAuth (exibido quando redirect traz erro na URL) */}
+      {/* Banner de erro OAuth */}
       {oauthError && !oauthBannerDismissed && (
         <div className="w-full max-w-sm mb-4 bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-3 animate-fade-in">
           <div className="flex items-start gap-3">
@@ -197,7 +195,7 @@ export default function LoginPage() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
           )}
-          <span>{isGoogleLoading ? "Reindirizzamento..." : "Continua con Google"}</span>
+          <span>{isGoogleLoading ? t.login.redirecting : t.login.googleButton}</span>
         </button>
 
         {/* Botão Apple */}
@@ -213,13 +211,13 @@ export default function LoginPage() {
               <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.6-57-155.5-127C46.7 790.7 0 663 0 541.8c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
             </svg>
           )}
-          <span>{isAppleLoading ? "Reindirizzamento..." : "Continua con Apple"}</span>
+          <span>{isAppleLoading ? t.login.redirecting : t.login.appleButton}</span>
         </button>
 
         {/* Divisor */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-zinc-800" />
-          <span className="text-xs text-zinc-600 font-medium">oppure</span>
+          <span className="text-xs text-zinc-600 font-medium">{t.login.divider}</span>
           <div className="flex-1 h-px bg-zinc-800" />
         </div>
 
@@ -229,7 +227,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t.login.emailPlaceholder}
             className="w-full bg-[#27272a] border border-[#3f3f46] rounded-2xl px-4 py-3.5 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#deff9a]/30 focus:border-[#deff9a]/40 transition-colors"
             autoComplete="email"
             required
@@ -238,7 +236,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t.login.passwordPlaceholder}
             className="w-full bg-[#27272a] border border-[#3f3f46] rounded-2xl px-4 py-3.5 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#deff9a]/30 focus:border-[#deff9a]/40 transition-colors"
             autoComplete={isSignUp ? "new-password" : "current-password"}
             required
@@ -258,9 +256,9 @@ export default function LoginPage() {
             {isEmailLoading ? (
               <Loader2 size={18} className="animate-spin" />
             ) : isSignUp ? (
-              "Registrati"
+              t.login.signUp
             ) : (
-              "Accedi"
+              t.login.signIn
             )}
           </button>
 
@@ -272,9 +270,7 @@ export default function LoginPage() {
             }}
             className="w-full text-sm text-zinc-500 hover:text-[#deff9a] transition-colors py-1"
           >
-            {isSignUp
-              ? "Hai già un account? Accedi"
-              : "Non hai un account? Registrati"}
+            {isSignUp ? t.login.signUpSwitch : t.login.signInSwitch}
           </button>
         </form>
       </div>

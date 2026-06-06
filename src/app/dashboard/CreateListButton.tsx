@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useTranslation } from "@/contexts/LanguageContext";
 import toast from "react-hot-toast";
 
 export default function CreateListButton({ userId }: { userId: string }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -15,7 +17,7 @@ export default function CreateListButton({ userId }: { userId: string }) {
     try {
       const { data, error } = await supabase
         .from("lists")
-        .insert({ owner_id: userId, title: "Lista della spesa", emoji: "🛒" })
+        .insert({ owner_id: userId, title: t.list.defaultListTitle, emoji: "🛒" })
         .select("id")
         .single();
 
@@ -23,7 +25,7 @@ export default function CreateListButton({ userId }: { userId: string }) {
       router.push(`/lista/${data.id}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Errore: ${msg}`);
+      toast.error(`${t.dashboard.cloneError} ${msg}`);
       console.error("[CreateList]", err);
       setLoading(false);
     }

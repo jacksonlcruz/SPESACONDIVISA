@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { ArrowLeft, TrendingUp, ShoppingBag, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/contexts/LanguageContext";
 import clsx from "clsx";
 
 // ──────────────────────────────────────────────────────────
@@ -52,12 +53,12 @@ function getWeekNumber(d: Date): number {
   return Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 2;
 }
 
-function getMonthLabel(d: Date): string {
-  return d.toLocaleDateString("it-IT", { month: "short", year: "2-digit" });
+function getMonthLabel(d: Date, locale: string): string {
+  return d.toLocaleDateString(locale, { month: "short", year: "2-digit" });
 }
 
-function formatEuro(value: number): string {
-  return new Intl.NumberFormat("it-IT", {
+function formatEuro(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 2,
@@ -68,8 +69,11 @@ function formatEuro(value: number): string {
 // Componente: StatsDashboard (Client)
 // ──────────────────────────────────────────────────────────
 export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const [period, setPeriod] = useState<Period>("month");
+
+  const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT";
 
   // ── Filtra itens por período ─────────────────────────────
   const filteredItems = useMemo(() => {
@@ -124,17 +128,17 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      monthMap.set(getMonthLabel(d), 0);
+      monthMap.set(getMonthLabel(d, dateLocale), 0);
     }
     filteredItems.forEach((item) => {
       const d = new Date(item.purchased_at);
-      const label = getMonthLabel(d);
+      const label = getMonthLabel(d, dateLocale);
       if (monthMap.has(label)) {
         monthMap.set(label, (monthMap.get(label) ?? 0) + item.quantity * (item.unit_price ?? 0));
       }
     });
     return Array.from(monthMap.entries()).map(([label, total]) => ({ label, total }));
-  }, [filteredItems, period]);
+  }, [filteredItems, period, dateLocale]);
 
   // ── Gráfico 2: Top Itens por Impacto Financeiro ──────────
   const topItemsData = useMemo((): ChartDataPoint[] => {
@@ -163,7 +167,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
     if (active && payload && payload.length) {
       return (
         <div className="bg-[#1a1a1a] border border-zinc-700 rounded-xl px-3 py-2 shadow-xl">
-          <p className="text-sm font-bold text-[#deff9a]">{formatEuro(payload[0].value)}</p>
+          <p className="text-sm font-bold text-[#deff9a]">{formatEuro(payload[0].value, dateLocale)}</p>
         </div>
       );
     }
@@ -179,15 +183,15 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
           <button
             onClick={() => router.push("/dashboard")}
             className="p-2 rounded-xl hover:bg-surface-700 transition-colors"
-            aria-label="Torna alla dashboard"
+            aria-label={t.stats.backToDashboard}
           >
             <ArrowLeft size={20} className="text-zinc-400" />
           </button>
           <div>
             <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">
-              Analytics
+              {t.stats.analytics}
             </p>
-            <h1 className="text-xl font-bold text-zinc-100">Statistiche Spesa</h1>
+            <h1 className="text-xl font-bold text-zinc-100">{t.stats.title}</h1>
           </div>
         </div>
       </header>
@@ -205,7 +209,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             )}
           >
             <Calendar size={14} className="inline mr-1.5" />
-            Mese Corrente
+            {t.stats.currentMonth}
           </button>
           <button
             onClick={() => setPeriod("history")}
@@ -217,7 +221,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             )}
           >
             <TrendingUp size={14} className="inline mr-1.5" />
-            Storico 6 Mesi
+            {t.stats.last6Months}
           </button>
         </div>
 
@@ -226,12 +230,12 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
             <span className="text-6xl mb-5">📭</span>
             <h2 className="text-lg font-bold text-zinc-300 mb-2">
-              {period === "month" ? "Nessuna spesa questo mese" : "Nessuna spesa recente"}
+              {period === "month" ? t.stats.noSpendingThisMonth : t.stats.noSpendingRecent}
             </h2>
             <p className="text-sm text-zinc-500 leading-relaxed max-w-xs">
               {period === "month"
-                ? "Inizia a fare la spesa e finalizza gli acquisti per vedere le tue statistiche mensili."
-                : "Non hai completato acquisti negli ultimi 6 mesi. Torna a fare la spesa!"}
+                ? t.stats.noSpendingThisMonthDesc
+                : t.stats.noSpendingRecentDesc}
             </p>
           </div>
         ) : (
@@ -240,23 +244,23 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
                 <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                  {period === "month" ? "Totale mese" : "Totale 6 mesi"}
+                  {period === "month" ? t.stats.totalMonth : t.stats.total6Months}
                 </p>
                 <p className="text-lg font-bold text-[#deff9a] truncate">
-                  {formatEuro(kpis.total)}
+                  {formatEuro(kpis.total, dateLocale)}
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Media spesa</p>
-                <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping)}</p>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.stats.avgSpending}</p>
+                <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping, dateLocale)}</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">
-                  {kpis.distinctDays} {kpis.distinctDays === 1 ? "giorno" : "giorni"}
+                  {kpis.distinctDays} {kpis.distinctDays === 1 ? t.stats.day : t.stats.days}
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Articoli</p>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.stats.articles}</p>
                 <p className="text-lg font-bold text-white">{kpis.itemCount}</p>
-                <p className="text-[10px] text-zinc-600 mt-0.5">processati</p>
+                <p className="text-[10px] text-zinc-600 mt-0.5">{t.stats.processed}</p>
               </div>
             </div>
 
@@ -264,7 +268,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             <section>
               <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
                 <TrendingUp size={16} className="text-[#deff9a]" />
-                {period === "month" ? "Andamento settimanale" : "Andamento mensile"}
+                {period === "month" ? t.stats.weeklyTrend : t.stats.monthlyTrend}
               </h3>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-4">
                 {evolutionData.length > 0 ? (
@@ -298,16 +302,16 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-zinc-500 text-sm py-8">Dati insufficienti</p>
+                  <p className="text-center text-zinc-500 text-sm py-8">{t.stats.insufficientData}</p>
                 )}
               </div>
             </section>
 
-            {/* Gráfico 2: Top Itens por Impacto */}
+            {/* Gráfico 2: Top Itens */}
             <section>
               <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
                 <ShoppingBag size={16} className="text-[#deff9a]" />
-                Top impatto sul budget
+                {t.stats.topImpactOnBudget}
               </h3>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-4">
                 {topItemsData.length > 0 ? (
@@ -354,11 +358,11 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-zinc-500 text-sm py-8">Dati insufficienti</p>
+                  <p className="text-center text-zinc-500 text-sm py-8">{t.stats.insufficientData}</p>
                 )}
               </div>
               <p className="text-xs text-zinc-600 mt-1.5 px-1">
-                *Prodotti con il maggiore impatto sul totale speso nel periodo selezionato.
+                {t.stats.topImpactFootnote}
               </p>
             </section>
           </>
