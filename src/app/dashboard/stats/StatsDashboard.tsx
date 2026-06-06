@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { ArrowLeft, TrendingUp, ShoppingBag, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/contexts/LanguageContext";
 import clsx from "clsx";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -53,12 +54,12 @@ function getWeekNumber(d: Date): number {
   return Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 2;
 }
 
-function getMonthLabel(d: Date): string {
-  return d.toLocaleDateString("it-IT", { month: "short", year: "2-digit" });
+function getMonthLabel(d: Date, locale: string): string {
+  return d.toLocaleDateString(locale, { month: "short", year: "2-digit" });
 }
 
-function formatEuro(value: number): string {
-  return new Intl.NumberFormat("it-IT", {
+function formatEuro(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 2,
@@ -69,9 +70,12 @@ function formatEuro(value: number): string {
 // Componente: StatsDashboard (Client)
 // ──────────────────────────────────────────────────────────
 export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("month");
+
+  const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT";
 
   // ── Filtra itens por período ─────────────────────────────
   const filteredItems = useMemo(() => {
@@ -129,11 +133,11 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      monthMap.set(getMonthLabel(d), 0);
+      monthMap.set(getMonthLabel(d, dateLocale), 0);
     }
     filteredItems.forEach((item) => {
       const d = new Date(item.purchased_at);
-      const label = getMonthLabel(d);
+      const label = getMonthLabel(d, dateLocale);
       if (monthMap.has(label)) {
         monthMap.set(label, (monthMap.get(label) ?? 0) + item.quantity * (item.unit_price ?? 0));
       }
@@ -168,7 +172,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
     if (active && payload && payload.length) {
       return (
         <div className="bg-[#1a1a1a] border border-zinc-700 rounded-xl px-3 py-2 shadow-xl">
-          <p className="text-sm font-bold text-[#deff9a]">{formatEuro(payload[0].value)}</p>
+          <p className="text-sm font-bold text-[#deff9a]">{formatEuro(payload[0].value, dateLocale)}</p>
         </div>
       );
     }
@@ -248,7 +252,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                   {period === "month" ? t.stats.totalMonth : t.stats.total6Months}
                 </p>
                 <p className="text-lg font-bold text-[#deff9a] truncate">
-                  {formatEuro(kpis.total)}
+                  {formatEuro(kpis.total, dateLocale)}
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
@@ -314,7 +318,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
               </div>
             </section>
 
-            {/* Gráfico 2: Top Itens por Impacto */}
+            {/* Gráfico 2: Top Itens */}
             <section>
               <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
                 <ShoppingBag size={16} className="text-[#deff9a]" />

@@ -7,11 +7,17 @@ import { useTranslation } from "@/hooks/useTranslation";
 
 // ──────────────────────────────────────────────────────────
 // Client Component: Header do Dashboard
-// Gerencia o estado do modal de configurações
+// Gerencia o estado do modal de configurações + seletor de idioma
 // ──────────────────────────────────────────────────────────
 export default function DashboardHeader() {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
+
+  const languages: { code: Locale; label: string }[] = [
+    { code: "it", label: t.language.it },
+    { code: "pt", label: t.language.pt },
+    { code: "en", label: t.language.en },
+  ];
 
   return (
     <>
@@ -53,6 +59,25 @@ export default function DashboardHeader() {
               </button>
             </form>
           </div>
+        </div>
+
+        {/* ── Seletor de idioma elegante ────────────────────── */}
+        <div className="flex items-center justify-center gap-1.5 mt-4">
+          {languages.map(({ code, label }) => (
+            <button
+              key={code}
+              onClick={() => setLocale(code)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
+                locale === code
+                  ? "bg-[#deff9a] text-black shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-surface-700"
+              }`}
+              aria-label={label}
+            >
+              {locale === code && "✓ "}
+              {label}
+            </button>
+          ))}
         </div>
       </header>
 

@@ -43,7 +43,6 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
         { event: "DELETE", schema: "public", table: "lists" },
         (payload) => {
           const deletedId = (payload.old as { id: string }).id;
-          // Remove a lista deletada do estado local (sem precisar de F5)
           setOwnLists((prev) => prev.filter((l) => l.id !== deletedId));
           setSharedLists((prev) => prev.filter((l) => l.list_id !== deletedId));
         }
@@ -56,7 +55,6 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
           const newList = payload.new as OwnList & { is_archived?: boolean; owner_id?: string };
           if (newList.is_archived) return;
           setOwnLists((prev) => {
-            // Evita duplicatas caso o initialOwnLists já traga a lista
             if (prev.some((l) => l.id === newList.id)) return prev;
             return [newList, ...prev];
           });
@@ -68,7 +66,6 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
         { event: "UPDATE", schema: "public", table: "lists" },
         (payload) => {
           const updated = payload.new as OwnList;
-          // Atualiza o título/emoji no estado local imediatamente
           setOwnLists((prev) =>
             prev.map((l) =>
               l.id === updated.id

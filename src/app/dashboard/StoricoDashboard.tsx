@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
+import { useTranslation } from "@/contexts/LanguageContext";
 import toast from "react-hot-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 
 // ── Tipos ────────────────────────────────────────────────────────────────
 type SpesaGroup = {
-  key: string;          // "${dateKey}_${listId}"
+  key: string;
   dateLabel: string;
   listId: string;
   listTitle: string;
@@ -38,6 +39,7 @@ interface StoricoDashboardProps {
 // StoricoDashboard — renderiza cards clicáveis + bottom sheet de detalhes
 // ──────────────────────────────────────────────────────────────────────────
 export default function StoricoDashboard({ groups, allItems }: StoricoDashboardProps) {
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const { t } = useTranslation();
   const [selectedGroup, setSelectedGroup] = useState<SpesaGroup | null>(null);
@@ -57,7 +59,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
     setIsCloning(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non autenticato");
+      if (!user) throw new Error(t.dashboard.notAuthenticated);
 
       // 1. Cria nova lista com o título/emoji originais
       const { data: newList, error: listError } = await supabase
@@ -69,9 +71,9 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
         })
         .select("id")
         .single();
-      if (listError || !newList) throw listError ?? new Error("Errore creazione lista");
+      if (listError || !newList) throw listError ?? new Error(t.dashboard.errorCreatingList);
 
-      // 2. Insere os itens na nova lista — status limpo, quantidades e preços resetados
+      // 2. Insere os itens na nova lista
       const itemsToInsert = groupItems.map((item, idx) => ({
         list_id: newList.id,
         name: item.name,
@@ -93,13 +95,15 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
       toast.success(t.dashboard.cloneSuccess);
       router.push(`/lista/${newList.id}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Errore sconosciuto";
-      toast.error(`Errore: ${msg}`);
+      const msg = err instanceof Error ? err.message : t.dashboard.unknownError;
+      toast.error(`${t.dashboard.cloneError} ${msg}`);
       setIsCloning(false);
     }
   }, [selectedGroup, isCloning, groupItems, router, t.dashboard.cloneSuccess]);
 
   if (groups.length === 0) return null;
+
+  const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT";
 
   return (
     <>

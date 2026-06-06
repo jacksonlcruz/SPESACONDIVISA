@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useShoppingCalculator } from "@/hooks/useShoppingCalculator";
+import { useTranslation } from "@/contexts/LanguageContext";
 import ShoppingListItem from "./ShoppingListItem";
 import TotalDisplay from "./TotalDisplay";
 import PriceModal from "./PriceModal";
@@ -28,12 +29,6 @@ const DEFAULT_TITLES = ["Lista della spesa", "Lista de compras", "Shopping list"
 
 // ──────────────────────────────────────────────────────────
 // Componente: ShoppingList
-//
-// Componente principal da tela de lista. Orquestra:
-//  • Dados e Realtime  →  useRealtimeList
-//  • Cálculos          →  useShoppingCalculator
-//  • Modal de preço    →  PriceModal (manual + câmera/IA)
-//  • Inserção de item  →  formulário inline
 // ──────────────────────────────────────────────────────────
 export default function ShoppingList({
   listId,
@@ -41,6 +36,7 @@ export default function ShoppingList({
   shareToken,
   canEdit = true,
 }: ShoppingListProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { t, locale } = useTranslation();
 
@@ -49,35 +45,40 @@ export default function ShoppingList({
 
   const totals = useShoppingCalculator(items);
 
+  // ── Traduz título se for o default ──────────────────────
+  const displayTitle = useCallback((raw: string) => {
+    const defaultPatterns = ["Lista della spesa", "Lista de compras", "Shopping list"];
+    for (const pattern of defaultPatterns) {
+      if (raw.includes(pattern)) {
+        const emoji = raw.match(/[\p{Emoji}]/u)?.[0] ?? "";
+        return emoji ? `${emoji} ${t.list.defaultListTitle}` : t.list.defaultListTitle;
+      }
+    }
+    return raw;
+  }, [t.list.defaultListTitle]);
+
   // Estado do modal de preço
   const [modalItem, setModalItem] = useState<ListItem | null>(null);
-
-  // Estado do modal de edição de item (clique no card)
+  // Estado do modal de edição de item
   const [editItem, setEditItem] = useState<ListItem | null>(null);
-
   // Estado do campo de novo item
   const [newItemName, setNewItemName]   = useState("");
   const [isAdding, setIsAdding]         = useState(false);
   const inputRef                        = useRef<HTMLInputElement>(null);
-
   // Estado do modal de compartilhamento
   const [showShareModal, setShowShareModal] = useState(false);
-
   // Estado do modal de exclusão da lista
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting]           = useState(false);
-
   // Estado do modal de finalização de compra
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [isFinalizing, setIsFinalizing]           = useState(false);
   const [shareEmail, setShareEmail]         = useState("");
   const [isSharing, setIsSharing]           = useState(false);
-
   // Estado do inline editing do título
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue]         = useState(listTitle);
   const titleInputRef                       = useRef<HTMLInputElement>(null);
-
   // ── Estado do Scanner Geral ──────────────────────────────
   const [showGeneralScanner, setShowGeneralScanner] = useState(false);
   const [scanResult, setScanResult] = useState<ScanAnyResult | null>(null);
@@ -112,10 +113,7 @@ export default function ShoppingList({
       if (!modalItem) return;
       try {
         await checkItem(modalItem.id, qty, price);
-
-        // Persiste dados da IA se disponível
         if (aiData?.matched_label) {
-          // fire-and-forget — não bloqueia a UX
           fetch("/api/lists/update-ai-data", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -124,7 +122,7 @@ export default function ShoppingList({
               aiMatchedLabel: aiData.matched_label,
               ocrRawPrice: aiData.ocr_raw,
             }),
-          }).catch(() => {/* silencia erros não críticos */});
+          }).catch(() => {});
         }
 
         toast.success(t.list.itemAdded);
@@ -238,27 +236,22 @@ export default function ShoppingList({
   );
 
   // ── Separa itens: pendentes vs marcados ──────────────────
-  // (declarados antes dos callbacks que os referem como dependências)
   const pendingItems  = items.filter((i) => !i.is_checked);
   const checkedItems  = items.filter((i) =>  i.is_checked);
 
-  // ── Finaliza os itens do carrinho (partial ou completo) ───────────
+  // ── Finaliza os itens do carrinho ────────────────────────
   const handleFinalizeConfirm = useCallback(async () => {
     if (isFinalizing) return;
     setIsFinalizing(true);
     try {
       const checkedIds = checkedItems.map((i) => i.id);
       const isComplete = pendingItems.length === 0;
-
       await finalizeItems(checkedIds);
-
       if (isComplete) {
-        // Compra completa: arquiva lista e volta ao dashboard
         await supabase.from("lists").update({ is_archived: true }).eq("id", listId);
         toast.success(t.list.finalizeSuccess);
         router.push("/dashboard");
       } else {
-        // Compra parcial: permanece na lista com itens restantes
         const n = checkedIds.length;
         toast.success(
           n === 1
@@ -317,7 +310,6 @@ export default function ShoppingList({
         const common = targetWords.filter((tw) => itemWords.some((iw) => iw === tw || tw.includes(iw) || iw.includes(tw)));
         if (common.length >= 2) return item;
       }
-
       return null;
     },
     [items]
@@ -330,7 +322,6 @@ export default function ShoppingList({
       setShowGeneralScanner(false);
 
       const matched = findSimilarItem(result.product);
-
       if (matched) {
         const preFilledItem: ListItem = {
           ...matched,
@@ -410,12 +401,13 @@ export default function ShoppingList({
   // ──────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────
+  const renderedTitle = displayTitle(listTitle);
+
   return (
     <div className="flex flex-col h-full bg-black">
       {/* Cabeçalho de navegação */}
       <div className="bg-black sticky top-0 z-30 px-4 pt-11 pb-3 border-b border-zinc-900/80">
         <div className="flex items-center gap-2">
-          {/* Botão Voltar */}
           <button
             onClick={() => router.push("/dashboard")}
             aria-label={t.list.back}
@@ -425,7 +417,6 @@ export default function ShoppingList({
             <span className="text-sm font-medium">{t.list.back}</span>
           </button>
 
-          {/* Divisore */}
           <div className="w-px h-5 bg-zinc-800 flex-shrink-0" />
 
           {/* Título (editável) */}
@@ -567,7 +558,6 @@ export default function ShoppingList({
       {/* Rodapé: Finalizza + Aggiungi */}
       {canEdit && (
         <div className="bg-black border-t border-zinc-900">
-          {/* Botão Finalizza Spesa — aparece quando há itens no carrinho */}
           {checkedItems.length > 0 && (
             <div className="px-4 pt-3">
               <button
@@ -579,7 +569,6 @@ export default function ShoppingList({
             </div>
           )}
 
-          {/* Campo adicionar item */}
           <div className="px-4 py-3 pb-safe">
             <form onSubmit={handleAddItem} className="flex items-center gap-2">
               <input
@@ -591,7 +580,6 @@ export default function ShoppingList({
                 maxLength={120}
                 autoComplete="off"
               />
-              {/* Botão Scanner Geral (Câmera) */}
               <button
                 type="button"
                 onClick={() => setShowGeneralScanner(true)}
@@ -639,17 +627,12 @@ export default function ShoppingList({
             />
             <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
               <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
-                {/* Ícone */}
                 <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#deff9a]/10 border border-[#deff9a]/20 mx-auto mb-5">
                   <span className="text-2xl">🛒</span>
                 </div>
-
-                {/* Título */}
                 <h2 className="text-lg font-bold text-white text-center mb-3">
                   {isComplete ? t.list.finalizeTitle : t.list.finalizePartial}
                 </h2>
-
-                {/* Resumo */}
                 <div className="flex justify-center gap-6 mb-4">
                   <div className="text-center">
                     <p className="text-xl font-bold text-[#deff9a]">{checkedItems.length}</p>
@@ -662,13 +645,9 @@ export default function ShoppingList({
                     </div>
                   )}
                 </div>
-
-                {/* Mensagem */}
                 <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
                   {isComplete ? t.list.completeConfirm : t.list.partialConfirm}
                 </p>
-
-                {/* Botões */}
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowFinalizeModal(false)}
@@ -704,12 +683,9 @@ export default function ShoppingList({
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
             <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
-              {/* Ícone */}
               <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-5">
                 <Trash2 size={26} className="text-red-400" />
               </div>
-
-              {/* Texto */}
               <h2 className="text-lg font-bold text-white text-center mb-2">
                 {t.list.deleteList}
               </h2>
@@ -718,8 +694,6 @@ export default function ShoppingList({
                 <br />
                 <span className="text-zinc-600 text-xs mt-1 block">{t.list.deleteIrreversible}</span>
               </p>
-
-              {/* Botões */}
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
@@ -756,12 +730,9 @@ export default function ShoppingList({
             onClick={() => setShowShareModal(false)}
           />
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0d0d0d] border border-[#deff9a]/20 border-b-0 rounded-t-3xl shadow-2xl animate-slide-up px-5 pt-5 pb-10">
-            {/* Handle */}
             <div className="flex justify-center mb-4">
               <div className="w-10 h-1 bg-zinc-700 rounded-full" />
             </div>
-
-            {/* Cabeçalho */}
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold text-white">{t.list.shareTitle}</h2>
@@ -774,22 +745,17 @@ export default function ShoppingList({
                 <X size={20} className="text-zinc-400" />
               </button>
             </div>
-
-            {/* Link de cópia */}
             <button
               onClick={handleCopyLink}
               className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium text-zinc-300 transition-colors"
             >
               {t.list.copyLink}
             </button>
-
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-1 h-px bg-zinc-800" />
               <span className="text-xs text-zinc-600 font-medium">{t.list.shareDivider}</span>
               <div className="flex-1 h-px bg-zinc-800" />
             </div>
-
-            {/* Form e-mail */}
             <form onSubmit={handleShare} className="space-y-3">
               <div className="relative">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -853,17 +819,12 @@ export default function ShoppingList({
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
             <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
-              {/* Ícone */}
               <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#deff9a]/10 border border-[#deff9a]/20 mx-auto mb-5">
                 <span className="text-2xl">📦</span>
               </div>
-
-              {/* Título */}
               <h2 className="text-lg font-bold text-white text-center mb-3">
                 {t.list.scanNewProduct}
               </h2>
-
-              {/* Detalhes */}
               <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl px-4 py-4 mb-5 space-y-3">
                 <div>
                   <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
@@ -896,8 +857,6 @@ export default function ShoppingList({
                   </p>
                 )}
               </div>
-
-              {/* Mensagem */}
               <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
                 {t.list.scanConfirmMsg
                   .replace("{name}", scanResult.product)
@@ -908,8 +867,6 @@ export default function ShoppingList({
                       : t.list.scanWithoutPrice
                   )}
               </p>
-
-              {/* Botões */}
               <div className="flex gap-3">
                 <button
                   onClick={() => {

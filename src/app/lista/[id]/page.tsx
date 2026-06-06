@@ -49,11 +49,14 @@ export default async function ListPage({ params }: ListPageProps) {
     canEdit = share?.role === "editor";
   }
 
+  // Monta o título: se for o título padrão, deixa o cliente traduzir
+  const titleWithEmoji = `${list.emoji} ${list.title}`;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <ShoppingList
         listId={list.id}
-        listTitle={`${list.emoji} ${list.title}`}
+        listTitle={titleWithEmoji}
         shareToken={list.share_token}
         canEdit={canEdit}
       />
