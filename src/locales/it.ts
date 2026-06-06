@@ -5,33 +5,38 @@ import type { TranslationSchema } from "./types";
 
 const it: TranslationSchema = {
   login: {
-    appName: "Spesa Condivisa",
-    tagline: "La tua lista della spesa collaborativa",
+    title: "Spesa Condivisa",
+    subtitle: "La tua lista della spesa collaborativa",
+    oauthNotConfigured: {
+      title: "Provider non configurato",
+      message: "Il provider di accesso selezionato non è stato ancora abilitato. Contatta l'amministratore o utilizza un altro metodo di accesso."
+    },
+    oauthSessionExpired: {
+      title: "Sessione scaduta",
+      message: "La tua sessione è scaduta. Per favore, riprova ad accedere."
+    },
+    oauthTimeout: {
+      title: "Tempo scaduto",
+      message: "Il tempo per completare l'accesso è scaduto. Riprova."
+    },
+    oauthGeneric: {
+      title: "Errore di autenticazione",
+      message: "Si è verificato un errore durante l'accesso. Riprova."
+    },
+    genericGoogleError: "Errore con Google",
+    genericAppleError: "Errore con Apple",
+    genericAuthError: "Errore di autenticazione",
+    redirecting: "Reindirizzamento...",
     googleButton: "Continua con Google",
-    googleRedirecting: "Reindirizzamento...",
     appleButton: "Continua con Apple",
-    appleRedirecting: "Reindirizzamento...",
     divider: "oppure",
     emailPlaceholder: "Email",
     passwordPlaceholder: "Password",
-    signUpButton: "Registrati",
-    signInButton: "Accedi",
-    hasAccount: "Hai già un account? Accedi",
-    noAccount: "Non hai un account? Registrati",
+    signUp: "Registrati",
+    signIn: "Accedi",
+    signUpSwitch: "Non hai un account? Registrati",
+    signInSwitch: "Hai già un account? Accedi",
     checkEmail: "Controlla la tua email per confermare la registrazione!",
-    errorDefault: "Errore di autenticazione",
-    errorProviderDisabled:
-      "Il provider di accesso selezionato non è stato ancora abilitato. Contatta l'amministratore o utilizza un altro metodo di accesso.",
-    errorSessionExpired: "La tua sessione è scaduta. Per favore, riprova ad accedere.",
-    errorTimeout: "Il tempo per completare l'accesso è scaduto. Riprova.",
-    errorGeneric: "Si è verificato un errore durante l'accesso. Riprova.",
-    providerNotConfigured: "Provider non configurato",
-    sessionExpired: "Sessione scaduta",
-    timeout: "Tempo scaduto",
-    authError: "Errore di autenticazione",
-    dismissAlert: "Chiudi avviso",
-    errorWithGoogle: "Errore con Google",
-    errorWithApple: "Errore con Apple",
   },
 
   dashboard: {
@@ -56,6 +61,10 @@ const it: TranslationSchema = {
     cloneList: "🔄 Copia come nuova lista",
     cloning: "Clonazione in corso…",
     cloneSuccess: "Lista clonata con successo! 🎉",
+    cloneError: "Errore durante la clonazione",
+    notAuthenticated: "Utente non autenticato",
+    errorCreatingList: "Errore nella creazione della lista",
+    unknownError: "Errore sconosciuto",
     noDetails: "Nessun dettaglio disponibile.",
     historyLabel: "📜 Storico · {date}",
     close: "Chiudi",
@@ -164,6 +173,7 @@ const it: TranslationSchema = {
     scanAdd: "✅ Sì, aggiungi",
     scanAdded: '"{name}" aggiunto al carrello! 🛒 ({price})',
     scanAddedNoPrice: '"{name}" aggiunto al carrello! 🛒 (senza prezzo)',
+    defaultListTitle: "Lista della spesa",
   },
 
   settings: {

@@ -257,7 +257,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                 <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
                   {t.stats.averageSpend}
                 </p>
-                <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping)}</p>
+                <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping, dateLocale)}</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">
                   {kpis.distinctDays} {kpis.distinctDays === 1 ? t.stats.day : t.stats.days}
                 </p>

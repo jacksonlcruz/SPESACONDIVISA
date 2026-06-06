@@ -5,32 +5,26 @@
 
 export interface TranslationSchema {
   login: {
-    appName: string;
-    tagline: string;
+    title: string;
+    subtitle: string;
+    oauthNotConfigured: { title: string; message: string; };
+    oauthSessionExpired: { title: string; message: string; };
+    oauthTimeout: { title: string; message: string; };
+    oauthGeneric: { title: string; message: string; };
+    genericGoogleError: string;
+    genericAppleError: string;
+    genericAuthError: string;
+    redirecting: string;
     googleButton: string;
-    googleRedirecting: string;
     appleButton: string;
-    appleRedirecting: string;
     divider: string;
     emailPlaceholder: string;
     passwordPlaceholder: string;
-    signUpButton: string;
-    signInButton: string;
-    hasAccount: string;
-    noAccount: string;
+    signUp: string;
+    signIn: string;
+    signUpSwitch: string;
+    signInSwitch: string;
     checkEmail: string;
-    errorDefault: string;
-    errorProviderDisabled: string;
-    errorSessionExpired: string;
-    errorTimeout: string;
-    errorGeneric: string;
-    providerNotConfigured: string;
-    sessionExpired: string;
-    timeout: string;
-    authError: string;
-    dismissAlert: string;
-    errorWithGoogle: string;
-    errorWithApple: string;
   };
   dashboard: {
     welcome: string;
@@ -54,6 +48,10 @@ export interface TranslationSchema {
     cloneList: string;
     cloning: string;
     cloneSuccess: string;
+    cloneError: string;
+    notAuthenticated: string;
+    errorCreatingList: string;
+    unknownError: string;
     noDetails: string;
     historyLabel: string;
     close: string;
@@ -155,6 +153,7 @@ export interface TranslationSchema {
     scanAdd: string;
     scanAdded: string;
     scanAddedNoPrice: string;
+    defaultListTitle: string;
   };
   settings: {
     title: string;
