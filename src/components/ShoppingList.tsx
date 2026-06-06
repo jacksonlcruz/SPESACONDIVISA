@@ -7,7 +7,6 @@ import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useShoppingCalculator } from "@/hooks/useShoppingCalculator";
-import { useTranslation } from "@/contexts/LanguageContext";
 import ShoppingListItem from "./ShoppingListItem";
 import TotalDisplay from "./TotalDisplay";
 import PriceModal from "./PriceModal";
@@ -36,9 +35,8 @@ export default function ShoppingList({
   shareToken,
   canEdit = true,
 }: ShoppingListProps) {
-  const { t } = useTranslation();
-  const router = useRouter();
   const { t, locale } = useTranslation();
+  const router = useRouter();
 
   const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, updateItem, finalizeItems, refetch } =
     useRealtimeList(listId);

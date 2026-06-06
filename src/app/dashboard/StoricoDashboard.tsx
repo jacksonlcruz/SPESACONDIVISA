@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
-import { useTranslation } from "@/contexts/LanguageContext";
 import toast from "react-hot-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -41,7 +40,6 @@ interface StoricoDashboardProps {
 export default function StoricoDashboard({ groups, allItems }: StoricoDashboardProps) {
   const { t, locale } = useTranslation();
   const router = useRouter();
-  const { t } = useTranslation();
   const [selectedGroup, setSelectedGroup] = useState<SpesaGroup | null>(null);
   const [isCloning, setIsCloning] = useState(false);
 
