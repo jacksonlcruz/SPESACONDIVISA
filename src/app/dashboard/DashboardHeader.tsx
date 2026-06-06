@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { LogOut, BarChart3, Settings } from "lucide-react";
 import SettingsModal from "@/components/SettingsModal";
-import { useTranslation, type Locale } from "@/contexts/LanguageContext";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // ──────────────────────────────────────────────────────────
 // Client Component: Header do Dashboard
 // Gerencia o estado do modal de configurações + seletor de idioma
 // ──────────────────────────────────────────────────────────
 export default function DashboardHeader() {
-  const { t, locale, setLocale } = useTranslation();
+  const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
 
   const languages: { code: Locale; label: string }[] = [
@@ -52,10 +52,10 @@ export default function DashboardHeader() {
               <button
                 type="submit"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-surface-700 transition-colors text-zinc-400 text-sm font-medium"
-                aria-label={t.dashboard.exit}
+                aria-label={t.dashboard.logout}
               >
                 <LogOut size={16} />
-                <span className="text-xs">{t.dashboard.exit}</span>
+                <span className="text-xs">{t.dashboard.logout}</span>
               </button>
             </form>
           </div>

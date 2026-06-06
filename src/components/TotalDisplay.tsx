@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { ShoppingCart, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
-import { useTranslation } from "@/contexts/LanguageContext";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface TotalDisplayProps {
   totalSpent: number;
@@ -41,15 +41,15 @@ const TotalDisplay = memo(function TotalDisplay({
             <ShoppingCart size={16} className="text-accent" />
           </div>
           <div>
-            <p className="text-xs text-zinc-500 font-medium">{t.list.inCart}</p>
+            <p className="text-xs text-zinc-500 font-medium">{t.list.inCartCount}</p>
             <p className="text-sm font-semibold text-zinc-200">
-              {checkedCount}/{totalCount} articoli
+              {checkedCount}/{totalCount}
             </p>
           </div>
         </div>
 
         <div className="text-right">
-          <p className="text-xs text-zinc-500 font-medium">{t.list.totalSpesa}</p>
+          <p className="text-xs text-zinc-500 font-medium">{t.list.cartTotal}</p>
           <p className="text-2xl font-bold text-accent tabular-nums">
             {formatCurrency(totalSpent)}
           </p>
@@ -65,7 +65,7 @@ const TotalDisplay = memo(function TotalDisplay({
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`${progress}% completato`}
+          aria-label={t.list.progressLabel.replace("{progress}", String(progress))}
         />
       </div>
 
@@ -73,12 +73,12 @@ const TotalDisplay = memo(function TotalDisplay({
       <div className="flex items-center justify-between mt-1.5">
         <div className="flex items-center gap-1 text-xs text-zinc-500">
           <TrendingUp size={11} />
-          <span>{t.list.estimatedTotal}: {formatCurrency(grandTotal)}</span>
+          <span>{t.list.estimateTotal.replace("{total}", formatCurrency(grandTotal))}</span>
         </div>
 
         {pendingPriceCount > 0 && (
           <p className="text-xs text-amber-400 font-medium">
-            ⚠️ {pendingPriceCount} {t.list.withoutPrice}
+            {t.list.noPriceWarning.replace("{count}", String(pendingPriceCount))}
           </p>
         )}
       </div>

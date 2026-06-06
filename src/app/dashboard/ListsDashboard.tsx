@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { useTranslation } from "@/contexts/LanguageContext";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // ── Tipos ────────────────────────────────────────────────────────────────
 type OwnList = {
@@ -29,7 +29,7 @@ interface Props {
 // ListsDashboard — exibe as listas com estado reativo (Realtime + estado local)
 // ─────────────────────────────────────────────────────────────────────────
 export default function ListsDashboard({ initialOwnLists, initialSharedLists }: Props) {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const [ownLists, setOwnLists] = useState<OwnList[]>(initialOwnLists);
   const [sharedLists, setSharedLists] = useState<SharedListItem[]>(initialSharedLists);
 
@@ -105,7 +105,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
       {ownLists.length > 0 && (
         <>
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1">
-            {t.dashboard.myLists} ({ownLists.length})
+            {t.dashboard.myListsCount.replace("{count}", String(ownLists.length))}
           </p>
           {ownLists.map((list) => (
             <Link
@@ -119,8 +119,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-zinc-100 truncate text-base">{list.title}</p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  {t.dashboard.updated}{" "}
-                  {new Date(list.updated_at).toLocaleDateString(locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT")}
+                  {t.dashboard.updated.replace("{date}", new Date(list.updated_at).toLocaleDateString())}
                 </p>
               </div>
               <span className="text-zinc-600 text-lg">›</span>
@@ -133,7 +132,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
       {sharedLists.length > 0 && (
         <>
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider pt-2 px-1">
-            {t.dashboard.sharedWithMe} ({sharedLists.length})
+            {t.dashboard.sharedWithMe.replace("{count}", String(sharedLists.length))}
           </p>
           {sharedLists.map((share) => {
             const list = share.lists;
@@ -150,7 +149,7 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-zinc-100 truncate text-base">{list.title}</p>
                   <p className="text-xs text-accent font-medium mt-0.5">
-                    👥 {t.dashboard.shared} · {share.role === "editor" ? t.dashboard.editor : t.dashboard.viewer}
+                    {t.dashboard.sharedRole.replace("{role}", share.role === "editor" ? t.dashboard.roleEditor : t.dashboard.roleViewer)}
                   </p>
                 </div>
                 <span className="text-zinc-600 text-lg">›</span>
@@ -167,9 +166,9 @@ export default function ListsDashboard({ initialOwnLists, initialSharedLists }: 
             🛍️
           </div>
           <div>
-            <p className="text-zinc-200 font-semibold">{t.dashboard.noListsYet}</p>
+            <p className="text-zinc-200 font-semibold">{t.dashboard.noLists}</p>
             <p className="text-zinc-500 text-sm mt-1">
-              {t.dashboard.tapPlusToCreate}
+              {t.dashboard.noListsHint}
             </p>
           </div>
         </div>

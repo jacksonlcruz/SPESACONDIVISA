@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Urbanist } from "next/font/google";
 import { Toaster } from "react-hot-toast";
-import Providers from "./Providers";
+import LanguageProviderWrapper from "@/components/LanguageProviderWrapper";
 import "./globals.css";
 
 const urbanist = Urbanist({ subsets: ["latin"], display: "swap", variable: "--font-urbanist" });
@@ -33,12 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="bg-surface-900 antialiased">
-        <Providers>
-          {/* Container mobile-first: max 430px centrado em telas maiores */}
-          <div className="relative min-h-screen max-w-[430px] mx-auto shadow-2xl bg-surface-900">
+        {/* Container mobile-first: max 430px centrado em telas maiores */}
+        <div className="relative min-h-screen max-w-[430px] mx-auto shadow-2xl bg-surface-900">
+          <LanguageProviderWrapper>
             {children}
-          </div>
-        </Providers>
+          </LanguageProviderWrapper>
+        </div>
         <Toaster
           position="top-center"
           toastOptions={{

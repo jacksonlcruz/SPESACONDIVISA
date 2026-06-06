@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
 import { useTranslation } from "@/contexts/LanguageContext";
 import toast from "react-hot-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // ── Tipos ────────────────────────────────────────────────────────────────
 type SpesaGroup = {
@@ -40,6 +41,7 @@ interface StoricoDashboardProps {
 export default function StoricoDashboard({ groups, allItems }: StoricoDashboardProps) {
   const { t, locale } = useTranslation();
   const router = useRouter();
+  const { t } = useTranslation();
   const [selectedGroup, setSelectedGroup] = useState<SpesaGroup | null>(null);
   const [isCloning, setIsCloning] = useState(false);
 
@@ -97,7 +99,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
       toast.error(`${t.dashboard.cloneError} ${msg}`);
       setIsCloning(false);
     }
-  }, [selectedGroup, isCloning, groupItems, router, t]);
+  }, [selectedGroup, isCloning, groupItems, router, t.dashboard.cloneSuccess]);
 
   if (groups.length === 0) return null;
 
@@ -109,7 +111,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
       <div className="flex items-center gap-2 pt-4 pb-1 px-1">
         <span className="text-lg">📜</span>
         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-          {t.dashboard.storicoSpese}
+          {t.dashboard.history}
         </p>
       </div>
 
@@ -129,18 +131,16 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-zinc-200 truncate text-sm">{group.listTitle}</p>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {group.itemCount}{" "}
-                {group.itemCount === 1 ? t.dashboard.articlePurchased : t.dashboard.articlesPurchased}
+                {group.itemCount === 1
+                  ? t.dashboard.itemPurchased.replace("{count}", String(group.itemCount))
+                  : t.dashboard.itemsPurchased.replace("{count}", String(group.itemCount))}
               </p>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-base font-bold text-[#deff9a]">
-                {group.total.toLocaleString(dateLocale, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{" "}€
+                {formatCurrency(group.total)}
               </p>
-              <p className="text-xs text-zinc-600 mt-0.5">{t.dashboard.tapForDetails}</p>
+              <p className="text-xs text-zinc-600 mt-0.5">{t.dashboard.touchDetails}</p>
             </div>
           </div>
         </button>
@@ -166,7 +166,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             <div className="flex items-start justify-between px-5 pt-2 pb-3 flex-shrink-0">
               <div>
                 <p className="text-xs text-zinc-500 font-medium mb-1">
-                  📜 {t.dashboard.storicoSpese} · {selectedGroup.dateLabel}
+                  {t.dashboard.historyLabel.replace("{date}", selectedGroup.dateLabel)}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{selectedGroup.listEmoji}</span>
@@ -217,12 +217,9 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
             {/* Rodapé: total + botão clonar */}
             <div className="flex-shrink-0 border-t border-zinc-800 px-5 pt-4 pb-8">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-zinc-400">{t.dashboard.totalSpesa}</span>
+                <span className="text-sm text-zinc-400">{t.dashboard.totalSpent}</span>
                 <span className="text-xl font-bold text-[#deff9a]">
-                  {selectedGroup.total.toLocaleString(dateLocale, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{" "}€
+                  {formatCurrency(selectedGroup.total)}
                 </span>
               </div>
 
@@ -237,7 +234,7 @@ export default function StoricoDashboard({ groups, allItems }: StoricoDashboardP
                     {t.dashboard.cloning}
                   </>
                 ) : (
-                  t.dashboard.copyAsNewList
+                  t.dashboard.cloneList
                 )}
               </button>
             </div>

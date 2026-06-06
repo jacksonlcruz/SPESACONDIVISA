@@ -1,70 +1,76 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { Translations } from "@/locales/it";
+import { createContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import it from "@/locales/it";
 import pt from "@/locales/pt";
 import en from "@/locales/en";
+import type { TranslationSchema } from "@/locales/types";
 
-// ── Tipos ────────────────────────────────────────────────────────────
-export type Locale = "it" | "pt" | "en";
-
-const dictionaries: Record<Locale, Translations> = { it, pt, en };
+// ──────────────────────────────────────────────────────────
+// Tipos
+// ──────────────────────────────────────────────────────────
+export type SupportedLocale = "it" | "pt" | "en";
 
 const STORAGE_KEY = "spesa-locale";
 
-interface LanguageContextType {
-  locale: Locale;
-  t: Translations;
-  setLocale: (locale: Locale) => void;
+const dictionaries: Record<SupportedLocale, TranslationSchema> = {
+  it,
+  pt,
+  en,
+};
+
+// ── Parsing seguro do locale do localStorage (SSR-safe) ──
+function getInitialLocale(): SupportedLocale {
+  if (typeof window === "undefined") return "it";
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "it" || stored === "pt" || stored === "en") return stored;
+  } catch {
+    // localStorage indisponível (SSR)
+  }
+  return "it";
 }
 
-const LanguageContext = createContext<LanguageContextType>({
+// ── Interface do contexto ─────────────────────────────────
+interface LanguageContextValue {
+  locale: SupportedLocale;
+  setLocale: (newLocale: SupportedLocale) => void;
+  t: TranslationSchema;
+}
+
+// ── Contexto ──────────────────────────────────────────────
+export const LanguageContext = createContext<LanguageContextValue>({
   locale: "it",
-  t: it,
   setLocale: () => {},
+  t: dictionaries.it,
 });
 
-// ── Provider ─────────────────────────────────────────────────────────
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("it");
+// ── Provider ──────────────────────────────────────────────
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<SupportedLocale>("it");
 
-  // Inicializa: localStorage → navigator.language → fallback "it"
+  // Hydrate no cliente
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
-    if (stored && ["it", "pt", "en"].includes(stored)) {
-      setLocaleState(stored);
-    } else {
-      const browserLang = navigator.language?.split("-")[0] as Locale;
-      const detected = ["it", "pt", "en"].includes(browserLang) ? browserLang : "it";
-      setLocaleState(detected as Locale);
-    }
+    const initial = getInitialLocale();
+    setLocaleState(initial);
+    document.documentElement.lang = initial === "pt" ? "pt-BR" : initial;
   }, []);
 
-  // Sincroniza lang do HTML e persiste no localStorage
-  useEffect(() => {
-    document.documentElement.lang = locale;
-    localStorage.setItem(STORAGE_KEY, locale);
-  }, [locale]);
-
-  const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
+  const setLocale = useCallback((newLocale: SupportedLocale) => {
+    setLocaleState(newLocale);
+    try {
+      localStorage.setItem(STORAGE_KEY, newLocale);
+    } catch {
+      // safe
+    }
+    document.documentElement.lang = newLocale === "pt" ? "pt-BR" : newLocale;
   }, []);
 
   const t = dictionaries[locale];
 
   return (
-    <LanguageContext.Provider value={{ locale, t, setLocale }}>
+    <LanguageContext.Provider value={{ locale, setLocale, t }}>
       {children}
     </LanguageContext.Provider>
   );
-}
-
-// ── Hook ─────────────────────────────────────────────────────────────
-export function useTranslation() {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) {
-    throw new Error("useTranslation deve ser usado dentro de <LanguageProvider>");
-  }
-  return ctx;
 }

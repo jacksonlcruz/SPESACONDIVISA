@@ -15,6 +15,7 @@ import { ArrowLeft, TrendingUp, ShoppingBag, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/contexts/LanguageContext";
 import clsx from "clsx";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // ──────────────────────────────────────────────────────────
 // Tipos
@@ -71,6 +72,7 @@ function formatEuro(value: number, locale: string): string {
 export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
   const { t, locale } = useTranslation();
   const router = useRouter();
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("month");
 
   const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT";
@@ -120,7 +122,10 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
       const maxWeek = Math.max(1, ...Array.from(weekMap.keys()));
       const result: ChartDataPoint[] = [];
       for (let w = 1; w <= maxWeek; w++) {
-        result.push({ label: `Sett. ${w}`, total: weekMap.get(w) ?? 0 });
+        result.push({
+          label: t.stats.weekLabel.replace("{week}", String(w)),
+          total: weekMap.get(w) ?? 0,
+        });
       }
       return result;
     }
@@ -138,7 +143,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
       }
     });
     return Array.from(monthMap.entries()).map(([label, total]) => ({ label, total }));
-  }, [filteredItems, period, dateLocale]);
+  }, [filteredItems, period, t.stats.weekLabel]);
 
   // ── Gráfico 2: Top Itens por Impacto Financeiro ──────────
   const topItemsData = useMemo((): ChartDataPoint[] => {
@@ -221,7 +226,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             )}
           >
             <TrendingUp size={14} className="inline mr-1.5" />
-            {t.stats.last6Months}
+            {t.stats.history6Months}
           </button>
         </div>
 
@@ -230,12 +235,12 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
             <span className="text-6xl mb-5">📭</span>
             <h2 className="text-lg font-bold text-zinc-300 mb-2">
-              {period === "month" ? t.stats.noSpendingThisMonth : t.stats.noSpendingRecent}
+              {period === "month" ? t.stats.emptyMonthTitle : t.stats.emptyHistoryTitle}
             </h2>
             <p className="text-sm text-zinc-500 leading-relaxed max-w-xs">
               {period === "month"
-                ? t.stats.noSpendingThisMonthDesc
-                : t.stats.noSpendingRecentDesc}
+                ? t.stats.emptyMonthDesc
+                : t.stats.emptyHistoryDesc}
             </p>
           </div>
         ) : (
@@ -251,14 +256,18 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.stats.avgSpending}</p>
-                <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping, dateLocale)}</p>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                  {t.stats.averageSpend}
+                </p>
+                <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping)}</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">
                   {kpis.distinctDays} {kpis.distinctDays === 1 ? t.stats.day : t.stats.days}
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.stats.articles}</p>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                  {t.stats.items}
+                </p>
                 <p className="text-lg font-bold text-white">{kpis.itemCount}</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">{t.stats.processed}</p>
               </div>
@@ -302,7 +311,9 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-zinc-500 text-sm py-8">{t.stats.insufficientData}</p>
+                  <p className="text-center text-zinc-500 text-sm py-8">
+                    {t.stats.insufficientData}
+                  </p>
                 )}
               </div>
             </section>
@@ -311,7 +322,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             <section>
               <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
                 <ShoppingBag size={16} className="text-[#deff9a]" />
-                {t.stats.topImpactOnBudget}
+                {t.stats.topBudgetImpact}
               </h3>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-4">
                 {topItemsData.length > 0 ? (
@@ -358,11 +369,13 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-zinc-500 text-sm py-8">{t.stats.insufficientData}</p>
+                  <p className="text-center text-zinc-500 text-sm py-8">
+                    {t.stats.insufficientData}
+                  </p>
                 )}
               </div>
               <p className="text-xs text-zinc-600 mt-1.5 px-1">
-                {t.stats.topImpactFootnote}
+                {t.stats.budgetImpactNote}
               </p>
             </section>
           </>
