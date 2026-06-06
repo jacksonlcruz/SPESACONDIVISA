@@ -1,12 +1,13 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
-export default function LoginPage() {
+function LoginForm() {
   const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -275,5 +276,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface-900" />}>
+      <LoginForm />
+    </Suspense>
   );
 }
