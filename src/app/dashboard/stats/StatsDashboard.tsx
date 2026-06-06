@@ -14,6 +14,7 @@ import {
 import { ArrowLeft, TrendingUp, ShoppingBag, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // ──────────────────────────────────────────────────────────
 // Tipos
@@ -69,6 +70,7 @@ function formatEuro(value: number): string {
 // ──────────────────────────────────────────────────────────
 export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("month");
 
   // ── Filtra itens por período ─────────────────────────────
@@ -116,7 +118,10 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
       const maxWeek = Math.max(1, ...Array.from(weekMap.keys()));
       const result: ChartDataPoint[] = [];
       for (let w = 1; w <= maxWeek; w++) {
-        result.push({ label: `Sett. ${w}`, total: weekMap.get(w) ?? 0 });
+        result.push({
+          label: t.stats.weekLabel.replace("{week}", String(w)),
+          total: weekMap.get(w) ?? 0,
+        });
       }
       return result;
     }
@@ -134,7 +139,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
       }
     });
     return Array.from(monthMap.entries()).map(([label, total]) => ({ label, total }));
-  }, [filteredItems, period]);
+  }, [filteredItems, period, t.stats.weekLabel]);
 
   // ── Gráfico 2: Top Itens por Impacto Financeiro ──────────
   const topItemsData = useMemo((): ChartDataPoint[] => {
@@ -179,15 +184,15 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
           <button
             onClick={() => router.push("/dashboard")}
             className="p-2 rounded-xl hover:bg-surface-700 transition-colors"
-            aria-label="Torna alla dashboard"
+            aria-label={t.stats.backToDashboard}
           >
             <ArrowLeft size={20} className="text-zinc-400" />
           </button>
           <div>
             <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">
-              Analytics
+              {t.stats.analytics}
             </p>
-            <h1 className="text-xl font-bold text-zinc-100">Statistiche Spesa</h1>
+            <h1 className="text-xl font-bold text-zinc-100">{t.stats.title}</h1>
           </div>
         </div>
       </header>
@@ -205,7 +210,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             )}
           >
             <Calendar size={14} className="inline mr-1.5" />
-            Mese Corrente
+            {t.stats.currentMonth}
           </button>
           <button
             onClick={() => setPeriod("history")}
@@ -217,7 +222,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             )}
           >
             <TrendingUp size={14} className="inline mr-1.5" />
-            Storico 6 Mesi
+            {t.stats.history6Months}
           </button>
         </div>
 
@@ -226,12 +231,12 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
             <span className="text-6xl mb-5">📭</span>
             <h2 className="text-lg font-bold text-zinc-300 mb-2">
-              {period === "month" ? "Nessuna spesa questo mese" : "Nessuna spesa recente"}
+              {period === "month" ? t.stats.emptyMonthTitle : t.stats.emptyHistoryTitle}
             </h2>
             <p className="text-sm text-zinc-500 leading-relaxed max-w-xs">
               {period === "month"
-                ? "Inizia a fare la spesa e finalizza gli acquisti per vedere le tue statistiche mensili."
-                : "Non hai completato acquisti negli ultimi 6 mesi. Torna a fare la spesa!"}
+                ? t.stats.emptyMonthDesc
+                : t.stats.emptyHistoryDesc}
             </p>
           </div>
         ) : (
@@ -240,23 +245,27 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
                 <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                  {period === "month" ? "Totale mese" : "Totale 6 mesi"}
+                  {period === "month" ? t.stats.totalMonth : t.stats.total6Months}
                 </p>
                 <p className="text-lg font-bold text-[#deff9a] truncate">
                   {formatEuro(kpis.total)}
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Media spesa</p>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                  {t.stats.averageSpend}
+                </p>
                 <p className="text-lg font-bold text-white">{formatEuro(kpis.avgPerShopping)}</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">
-                  {kpis.distinctDays} {kpis.distinctDays === 1 ? "giorno" : "giorni"}
+                  {kpis.distinctDays} {kpis.distinctDays === 1 ? t.stats.day : t.stats.days}
                 </p>
               </div>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-3.5 text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Articoli</p>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                  {t.stats.items}
+                </p>
                 <p className="text-lg font-bold text-white">{kpis.itemCount}</p>
-                <p className="text-[10px] text-zinc-600 mt-0.5">processati</p>
+                <p className="text-[10px] text-zinc-600 mt-0.5">{t.stats.processed}</p>
               </div>
             </div>
 
@@ -264,7 +273,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             <section>
               <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
                 <TrendingUp size={16} className="text-[#deff9a]" />
-                {period === "month" ? "Andamento settimanale" : "Andamento mensile"}
+                {period === "month" ? t.stats.weeklyTrend : t.stats.monthlyTrend}
               </h3>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-4">
                 {evolutionData.length > 0 ? (
@@ -298,7 +307,9 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-zinc-500 text-sm py-8">Dati insufficienti</p>
+                  <p className="text-center text-zinc-500 text-sm py-8">
+                    {t.stats.insufficientData}
+                  </p>
                 )}
               </div>
             </section>
@@ -307,7 +318,7 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
             <section>
               <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
                 <ShoppingBag size={16} className="text-[#deff9a]" />
-                Top impatto sul budget
+                {t.stats.topBudgetImpact}
               </h3>
               <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-4">
                 {topItemsData.length > 0 ? (
@@ -354,11 +365,13 @@ export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-zinc-500 text-sm py-8">Dati insufficienti</p>
+                  <p className="text-center text-zinc-500 text-sm py-8">
+                    {t.stats.insufficientData}
+                  </p>
                 )}
               </div>
               <p className="text-xs text-zinc-600 mt-1.5 px-1">
-                *Prodotti con il maggiore impatto sul totale speso nel periodo selezionato.
+                {t.stats.budgetImpactNote}
               </p>
             </section>
           </>

@@ -5,6 +5,8 @@ import { X, Settings, FileText, Trash2, Loader2, AlertTriangle } from "lucide-re
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import clsx from "clsx";
+import LanguageSelector from "./LanguageSelector";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -21,6 +23,7 @@ interface SettingsModalProps {
 // ──────────────────────────────────────────────────────────
 export default function SettingsModal({ onClose }: SettingsModalProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -103,6 +106,14 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 </p>
               </div>
             </a>
+          </div>
+
+          {/* Separador */}
+          <div className="h-px bg-zinc-800 mb-6" />
+
+          {/* Seção: Lingua */}
+          <div className="mb-6">
+            <LanguageSelector />
           </div>
 
           {/* Separador */}

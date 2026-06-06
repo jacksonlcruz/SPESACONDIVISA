@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2, Camera } from "lucide-react";
 import toast from "react-hot-toast";
@@ -12,6 +12,7 @@ import TotalDisplay from "./TotalDisplay";
 import PriceModal from "./PriceModal";
 import GeneralScanner from "./GeneralScanner";
 import EditItemModal from "./EditItemModal";
+import { useTranslation } from "@/hooks/useTranslation";
 import type { ListItem, AiMatchResult, ScanAnyResult } from "@/types";
 
 interface ShoppingListProps {
@@ -21,6 +22,9 @@ interface ShoppingListProps {
   /** true se o usuário logado for dono ou editor */
   canEdit?: boolean;
 }
+
+// ── Título padrão "Lista della spesa" — substituído dinamicamente ──
+const DEFAULT_TITLES = ["Lista della spesa", "Lista de compras", "Shopping list"];
 
 // ──────────────────────────────────────────────────────────
 // Componente: ShoppingList
@@ -38,6 +42,7 @@ export default function ShoppingList({
   canEdit = true,
 }: ShoppingListProps) {
   const router = useRouter();
+  const { t, locale } = useTranslation();
 
   const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, updateItem, finalizeItems, refetch } =
     useRealtimeList(listId);
@@ -79,6 +84,20 @@ export default function ShoppingList({
   const [showScanNewItemModal, setShowScanNewItemModal] = useState(false);
   const [isAddingScanned, setIsAddingScanned] = useState(false);
 
+  // ── Resolve título dinâmico para "Lista della spesa" ─────
+  const resolvedTitle = useMemo(() => {
+    // Remove prefixo emoji (qualquer caractere não-alfanumérico inicial)
+    const cleaned = titleValue.replace(/^[^a-zA-Z0-9À-ÿ]+/, "").trim();
+    if (DEFAULT_TITLES.includes(cleaned)) {
+      return locale === "pt"
+        ? "🛒 Lista de compras"
+        : locale === "en"
+        ? "🛒 Shopping list"
+        : "🛒 Lista della spesa";
+    }
+    return titleValue;
+  }, [titleValue, locale]);
+
   // Sync título se prop mudar externamente
   useEffect(() => { setTitleValue(listTitle); }, [listTitle]);
 
@@ -108,14 +127,14 @@ export default function ShoppingList({
           }).catch(() => {/* silencia erros não críticos */});
         }
 
-        toast.success("Aggiunto al carrello! 🛒");
+        toast.success(t.list.itemAdded);
       } catch {
-        toast.error("Errore. Riprova.");
+        toast.error(t.list.itemAddError);
       } finally {
         setModalItem(null);
       }
     },
-    [modalItem, checkItem]
+    [modalItem, checkItem, t.list.itemAdded, t.list.itemAddError]
   );
 
   // ── Adiciona novo item à lista ────────────────────────────
@@ -130,12 +149,12 @@ export default function ShoppingList({
         setNewItemName("");
         inputRef.current?.focus();
       } catch {
-        toast.error("Impossibile aggiungere l'articolo");
+        toast.error(t.list.itemAddError);
       } finally {
         setIsAdding(false);
       }
     },
-    [newItemName, isAdding, addItem]
+    [newItemName, isAdding, addItem, t.list.itemAddError]
   );
 
   // ── Salva o novo título da lista ────────────────────────
@@ -152,19 +171,19 @@ export default function ShoppingList({
         .update({ title: trimmed })
         .eq("id", listId);
       if (error) throw error;
-      toast.success("Nome aggiornato ✓");
+      toast.success(t.list.titleUpdated);
     } catch {
-      toast.error("Errore nel salvataggio");
+      toast.error(t.list.titleSaveError);
       setTitleValue(listTitle);
     }
-  }, [titleValue, listTitle, listId]);
+  }, [titleValue, listTitle, listId, t.list.titleUpdated, t.list.titleSaveError]);
 
   // ── Copia link de compartilhamento ───────────────────────
   const handleCopyLink = useCallback(async () => {
     const url = `${window.location.origin}/join/${shareToken}`;
     await navigator.clipboard.writeText(url);
-    toast.success("Link copiato! 📋");
-  }, [shareToken]);
+    toast.success(t.list.linkCopied);
+  }, [shareToken, t.list.linkCopied]);
 
   // ── Envia convite por e-mail ─────────────────────────────
   const handleShare = useCallback(async (e: React.FormEvent) => {
@@ -177,45 +196,45 @@ export default function ShoppingList({
         .from("list_shares")
         .insert({ list_id: listId, invited_email: email, role: "editor" });
       if (error) throw error;
-      toast.success(`Invito inviato a ${email}! ✉️`);
+      toast.success(t.list.shareSuccess.replace("{email}", email));
       setShareEmail("");
       setShowShareModal(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Errore";
-      toast.error(msg.includes("unique") ? "Utente già invitato" : "Errore nell'invio");
+      toast.error(msg.includes("unique") ? t.list.alreadyInvited : t.list.shareError);
     } finally {
       setIsSharing(false);
     }
-  }, [shareEmail, isSharing, listId]);
+  }, [shareEmail, isSharing, listId, t.list.shareSuccess, t.list.alreadyInvited, t.list.shareError]);
 
   // ── Delete com confirmação leve (toast) ──────────────────
   const handleDelete = useCallback(
     (itemId: string) => {
       toast(
-        (t) => (
+        (toastItem) => (
           <div className="flex items-center gap-3">
-            <span className="text-sm">Elimina articolo?</span>
+            <span className="text-sm">{t.list.deleteItemConfirm}</span>
             <button
               className="text-red-500 font-bold text-sm"
               onClick={() => {
-                deleteItem(itemId).catch(() => toast.error("Errore"));
-                toast.dismiss(t.id);
+                deleteItem(itemId).catch(() => toast.error(t.list.itemDeleteError));
+                toast.dismiss(toastItem.id);
               }}
             >
-              Sì
+              {t.list.yesDelete}
             </button>
             <button
               className="text-gray-500 text-sm"
-              onClick={() => toast.dismiss(t.id)}
+              onClick={() => toast.dismiss(toastItem.id)}
             >
-              No
+              {t.list.cancel}
             </button>
           </div>
         ),
         { duration: 4000 }
       );
     },
-    [deleteItem]
+    [deleteItem, t.list.deleteItemConfirm, t.list.yesDelete, t.list.cancel, t.list.itemDeleteError]
   );
 
   // ── Separa itens: pendentes vs marcados ──────────────────
@@ -236,20 +255,24 @@ export default function ShoppingList({
       if (isComplete) {
         // Compra completa: arquiva lista e volta ao dashboard
         await supabase.from("lists").update({ is_archived: true }).eq("id", listId);
-        toast.success("🎉 Spesa completata! Ottimo lavoro!");
+        toast.success(t.list.finalizeSuccess);
         router.push("/dashboard");
       } else {
         // Compra parcial: permanece na lista com itens restantes
         const n = checkedIds.length;
-        toast.success(`✅ ${n} ${n === 1 ? "articolo acquistato" : "articoli acquistati"}!`);
+        toast.success(
+          n === 1
+            ? t.list.finalizePartialSuccessOne.replace("{count}", String(n))
+            : t.list.finalizePartialSuccess.replace("{count}", String(n))
+        );
         setShowFinalizeModal(false);
       }
     } catch {
-      toast.error("Errore nel finalizzare la spesa");
+      toast.error(t.list.finalizeError);
     } finally {
       setIsFinalizing(false);
     }
-  }, [isFinalizing, checkedItems, pendingItems, finalizeItems, listId, router]);
+  }, [isFinalizing, checkedItems, pendingItems, finalizeItems, listId, router, t.list]);
 
   // ── Exclui a lista permanentemente ────────────────────────
   const handleDeleteList = useCallback(async () => {
@@ -261,44 +284,34 @@ export default function ShoppingList({
         .delete()
         .eq("id", listId);
       if (error) throw error;
-      toast.success("Lista eliminata con successo 🗑️");
+      toast.success(t.list.deleteListSuccess);
       router.push("/dashboard");
     } catch {
-      toast.error("Errore nell'eliminazione della lista");
+      toast.error(t.list.deleteListError);
       setIsDeleting(false);
     }
-  }, [isDeleting, listId, router]);
+  }, [isDeleting, listId, router, t.list.deleteListSuccess, t.list.deleteListError]);
 
   // ──────────────────────────────────────────────────────────
   // Scanner Geral: busca por similaridade
   // ──────────────────────────────────────────────────────────
-  //
-  // Função auxiliar: calcula similaridade simples entre duas strings.
-  // Compara normalizando (lowercase, trim) e verifica:
-  //   1. Match exato
-  //   2. Uma string contém a outra
-  //   3. Sobreposição de palavras significativas (>= 2 palavras comuns)
   const findSimilarItem = useCallback(
     (productName: string): ListItem | null => {
       if (!productName) return null;
       const target = productName.toLowerCase().trim();
       const targetWords = target.split(/\s+/).filter((w) => w.length > 2);
 
-      // Filtra apenas itens pendentes (não checkados) para dar match
       const candidates = items.filter((i) => !i.is_checked);
 
-      // Match exato
       for (const item of candidates) {
         if (item.name.toLowerCase().trim() === target) return item;
       }
 
-      // Contém
       for (const item of candidates) {
         const name = item.name.toLowerCase().trim();
         if (name.includes(target) || target.includes(name)) return item;
       }
 
-      // Sobreposição de palavras significativas (>=2 em comum)
       for (const item of candidates) {
         const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
         const common = targetWords.filter((tw) => itemWords.some((iw) => iw === tw || tw.includes(iw) || iw.includes(tw)));
@@ -316,11 +329,9 @@ export default function ShoppingList({
       setScanResult(result);
       setShowGeneralScanner(false);
 
-      // Busca por similaridade na lista
       const matched = findSimilarItem(result.product);
 
       if (matched) {
-        // Item existe: abre o modal de preço preenchido com o preço scaneado
         const preFilledItem: ListItem = {
           ...matched,
           unit_price: result.price ?? matched.unit_price,
@@ -330,7 +341,6 @@ export default function ShoppingList({
         setModalItem(preFilledItem);
         setScanResult(null);
       } else {
-        // Item NÃO existe: exibe diálogo perguntando se quer adicionar
         setShowScanNewItemModal(true);
       }
     },
@@ -345,7 +355,6 @@ export default function ShoppingList({
       const maxOrder = items.reduce((m, i) => Math.max(m, i.sort_order), 0);
       const price = scanResult.price ?? null;
 
-      // Insere o novo item diretamente na tabela, já marcado como no carrinho
       const { error: dbError } = await supabase.from("list_items").insert({
         list_id: listId,
         name: scanResult.product,
@@ -359,29 +368,29 @@ export default function ShoppingList({
       });
       if (dbError) throw new Error(dbError.message);
 
-      const priceStr = price != null ? `€${price.toFixed(2)}` : "senza prezzo";
-      toast.success(`"${scanResult.product}" aggiunto al carrello! 🛒 (${priceStr})`);
+      const priceStr = price != null ? `€${price.toFixed(2)}` : t.list.scanAddedNoPrice.split("(")[1]?.replace(")", "") ?? "senza prezzo";
+      toast.success(t.list.scanAdded.replace("{name}", scanResult.product).replace("{price}", priceStr));
       setShowScanNewItemModal(false);
       setScanResult(null);
     } catch {
-      toast.error("Impossibile aggiungere l'articolo scansionato");
+      toast.error(t.list.itemAddError);
     } finally {
       setIsAddingScanned(false);
     }
-  }, [scanResult, isAddingScanned, items, listId]);
+  }, [scanResult, isAddingScanned, items, listId, t.list]);
 
   // ── Salvar edição de item (EditItemModal) ────────────────
   const handleEditSave = useCallback(
     async (itemId: string, quantity: number, unitPrice: number | null) => {
       try {
         await updateItem(itemId, { quantity, unit_price: unitPrice });
-        toast.success("Articolo aggiornato ✓");
+        toast.success(t.list.itemUpdated);
       } catch {
-        toast.error("Errore nel salvataggio");
+        toast.error(t.list.itemSaveError);
         throw new Error("Errore");
       }
     },
-    [updateItem]
+    [updateItem, t.list.itemUpdated, t.list.itemSaveError]
   );
 
   // ── Remover do carrinho (do EditItemModal) ───────────────
@@ -389,13 +398,13 @@ export default function ShoppingList({
     async (itemId: string) => {
       try {
         await uncheckItem(itemId);
-        toast.success("Rimosso dal carrello");
+        toast.success(t.list.itemRemoved);
       } catch {
-        toast.error("Errore");
+        toast.error(t.list.itemDeleteError);
         throw new Error("Errore");
       }
     },
-    [uncheckItem]
+    [uncheckItem, t.list.itemRemoved, t.list.itemDeleteError]
   );
 
   // ──────────────────────────────────────────────────────────
@@ -409,11 +418,11 @@ export default function ShoppingList({
           {/* Botão Voltar */}
           <button
             onClick={() => router.push("/dashboard")}
-            aria-label="Torna indietro"
+            aria-label={t.list.back}
             className="flex-shrink-0 flex items-center gap-1 pr-2 py-1.5 text-zinc-400 hover:text-white transition-colors"
           >
             <ChevronLeft size={20} />
-            <span className="text-sm font-medium">Indietro</span>
+            <span className="text-sm font-medium">{t.list.back}</span>
           </button>
 
           {/* Divisore */}
@@ -441,7 +450,7 @@ export default function ShoppingList({
                 disabled={!canEdit}
                 className="flex items-center gap-1.5 group/title w-full text-left"
               >
-                <span className="text-base font-bold text-white truncate">{titleValue}</span>
+                <span className="text-base font-bold text-white truncate">{resolvedTitle}</span>
                 {canEdit && (
                   <Pencil
                     size={12}
@@ -456,7 +465,7 @@ export default function ShoppingList({
           {canEdit && (
             <button
               onClick={() => setShowShareModal(true)}
-              aria-label="Condividi lista"
+              aria-label={t.list.shareTitle}
               className="flex-shrink-0 p-2 rounded-xl hover:bg-zinc-900 transition-colors"
             >
               <Users size={18} className="text-zinc-400" />
@@ -467,7 +476,7 @@ export default function ShoppingList({
           {canEdit && (
             <button
               onClick={() => setShowDeleteModal(true)}
-              aria-label="Elimina lista"
+              aria-label={t.list.deleteList}
               className="flex-shrink-0 p-2 rounded-xl hover:bg-red-500/10 transition-colors"
             >
               <Trash2 size={18} className="text-zinc-600 hover:text-red-400 transition-colors" />
@@ -493,7 +502,7 @@ export default function ShoppingList({
               onClick={refetch}
               className="text-sm text-accent underline"
             >
-              Riprova
+              {t.list.retry}
             </button>
           </div>
         ) : (
@@ -502,7 +511,7 @@ export default function ShoppingList({
             {pendingItems.length > 0 && (
               <section>
                 <p className="px-4 pt-3 pb-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  Da comprare ({pendingItems.length})
+                  {t.list.toBuy.replace("{count}", String(pendingItems.length))}
                 </p>
                 <div className="space-y-2">
                   {pendingItems.map((item) => (
@@ -524,7 +533,7 @@ export default function ShoppingList({
             {checkedItems.length > 0 && (
               <section>
                 <p className="px-4 pt-3 pb-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  Nel carrello ({checkedItems.length})
+                  {t.list.inCart.replace("{count}", String(checkedItems.length))}
                 </p>
                 <div className="space-y-2">
                   {checkedItems.map((item) => (
@@ -547,7 +556,7 @@ export default function ShoppingList({
               <div className="flex flex-col items-center gap-3 p-10 text-center">
                 <span className="text-5xl">🛍️</span>
                 <p className="text-zinc-500 text-sm">
-                  La lista è vuota.<br />Aggiungi il primo articolo!
+                  {t.list.emptyList}<br />{t.list.emptyListHint}
                 </p>
               </div>
             )}
@@ -565,7 +574,7 @@ export default function ShoppingList({
                 onClick={() => setShowFinalizeModal(true)}
                 className="w-full bg-[#deff9a] text-black font-bold py-4 rounded-2xl text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg"
               >
-                🛒 Finalizza Spesa
+                {t.list.finalizeButton}
               </button>
             </div>
           )}
@@ -577,7 +586,7 @@ export default function ShoppingList({
                 ref={inputRef}
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
-                placeholder="Aggiungi articolo…"
+                placeholder={t.list.addPlaceholder}
                 className="flex-1 bg-[#1a1a1a] border border-zinc-800 rounded-2xl px-4 py-3 text-base text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#deff9a]/30 focus:border-[#deff9a]/40 transition-colors"
                 maxLength={120}
                 autoComplete="off"
@@ -586,7 +595,7 @@ export default function ShoppingList({
               <button
                 type="button"
                 onClick={() => setShowGeneralScanner(true)}
-                aria-label="Scanner generale"
+                aria-label={t.list.back}
                 className="flex-shrink-0 w-11 h-11 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl flex items-center justify-center transition-all active:scale-95"
               >
                 <Camera size={18} className="text-zinc-400 hover:text-[#deff9a] transition-colors" />
@@ -595,7 +604,7 @@ export default function ShoppingList({
                 type="submit"
                 disabled={!newItemName.trim() || isAdding}
                 className="flex-shrink-0 w-11 h-11 bg-[#deff9a] disabled:bg-zinc-800 disabled:opacity-50 rounded-2xl flex items-center justify-center transition-all active:scale-95"
-                aria-label="Aggiungi"
+                aria-label={t.list.addButton}
               >
                 {isAdding ? (
                   <Loader2 size={18} className="animate-spin text-black" />
@@ -637,28 +646,26 @@ export default function ShoppingList({
 
                 {/* Título */}
                 <h2 className="text-lg font-bold text-white text-center mb-3">
-                  {isComplete ? "Completa la spesa" : "Finalizza pagamento parziale"}
+                  {isComplete ? t.list.finalizeTitle : t.list.finalizePartial}
                 </h2>
 
                 {/* Resumo */}
                 <div className="flex justify-center gap-6 mb-4">
                   <div className="text-center">
                     <p className="text-xl font-bold text-[#deff9a]">{checkedItems.length}</p>
-                    <p className="text-xs text-zinc-500">nel carrello</p>
+                    <p className="text-xs text-zinc-500">{t.list.inCartCount}</p>
                   </div>
                   {!isComplete && (
                     <div className="text-center">
                       <p className="text-xl font-bold text-zinc-400">{pendingItems.length}</p>
-                      <p className="text-xs text-zinc-500">ancora da comprare</p>
+                      <p className="text-xs text-zinc-500">{t.list.stillToBuy}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Mensagem */}
                 <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
-                  {isComplete
-                    ? "Vuoi completare e archiviare questa lista? Tutti gli articoli saranno salvati nello storico."
-                    : "Ci sono ancora articoli da comprare. Vuoi finalizzare il pagamento solo per gli articoli attualmente nel carrello e mantenere gli altri per la prossima spesa?"}
+                  {isComplete ? t.list.completeConfirm : t.list.partialConfirm}
                 </p>
 
                 {/* Botões */}
@@ -668,7 +675,7 @@ export default function ShoppingList({
                     disabled={isFinalizing}
                     className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
                   >
-                    Annulla
+                    {t.list.cancel}
                   </button>
                   <button
                     onClick={handleFinalizeConfirm}
@@ -678,7 +685,7 @@ export default function ShoppingList({
                     {isFinalizing ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      isComplete ? "✅ Archivia" : "✅ Sì, Finalizza"
+                      isComplete ? t.list.archive : t.list.yesFinalize
                     )}
                   </button>
                 </div>
@@ -704,12 +711,12 @@ export default function ShoppingList({
 
               {/* Texto */}
               <h2 className="text-lg font-bold text-white text-center mb-2">
-                Elimina lista
+                {t.list.deleteList}
               </h2>
               <p className="text-sm text-zinc-400 text-center mb-7">
-                Sei sicuro di voler eliminare questa lista e tutti i suoi articoli?
+                {t.list.deleteConfirm}
                 <br />
-                <span className="text-zinc-600 text-xs mt-1 block">Questa azione è irreversibile.</span>
+                <span className="text-zinc-600 text-xs mt-1 block">{t.list.deleteIrreversible}</span>
               </p>
 
               {/* Botões */}
@@ -719,7 +726,7 @@ export default function ShoppingList({
                   disabled={isDeleting}
                   className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
                 >
-                  Annulla
+                  {t.list.cancel}
                 </button>
                 <button
                   onClick={handleDeleteList}
@@ -731,7 +738,7 @@ export default function ShoppingList({
                   ) : (
                     <>
                       <Trash2 size={15} />
-                      Elimina
+                      {t.list.delete}
                     </>
                   )}
                 </button>
@@ -757,8 +764,8 @@ export default function ShoppingList({
             {/* Cabeçalho */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-white">👥 Invita un collaboratore</h2>
-                <p className="text-sm text-zinc-500 mt-0.5">Inserisci l'email per invitare</p>
+                <h2 className="text-xl font-bold text-white">{t.list.shareTitle}</h2>
+                <p className="text-sm text-zinc-500 mt-0.5">{t.list.shareSubtitle}</p>
               </div>
               <button
                 onClick={() => setShowShareModal(false)}
@@ -773,12 +780,12 @@ export default function ShoppingList({
               onClick={handleCopyLink}
               className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium text-zinc-300 transition-colors"
             >
-              🔗 Copia link di invito
+              {t.list.copyLink}
             </button>
 
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-1 h-px bg-zinc-800" />
-              <span className="text-xs text-zinc-600 font-medium">oppure</span>
+              <span className="text-xs text-zinc-600 font-medium">{t.list.shareDivider}</span>
               <div className="flex-1 h-px bg-zinc-800" />
             </div>
 
@@ -790,7 +797,7 @@ export default function ShoppingList({
                   type="email"
                   value={shareEmail}
                   onChange={(e) => setShareEmail(e.target.value)}
-                  placeholder="Inserisci l'email o l'ID dell'utente"
+                  placeholder={t.list.emailPlaceholder}
                   className="w-full bg-[#1a1a1a] border border-zinc-800 rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#deff9a]/40 focus:ring-2 focus:ring-[#deff9a]/20 transition-colors"
                   autoComplete="email"
                 />
@@ -803,7 +810,7 @@ export default function ShoppingList({
                 {isSharing ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
-                  "✉️ Invia Invito"
+                  t.list.sendInvite
                 )}
               </button>
             </form>
@@ -853,14 +860,14 @@ export default function ShoppingList({
 
               {/* Título */}
               <h2 className="text-lg font-bold text-white text-center mb-3">
-                Nuovo prodotto rilevato
+                {t.list.scanNewProduct}
               </h2>
 
               {/* Detalhes */}
               <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl px-4 py-4 mb-5 space-y-3">
                 <div>
                   <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                    Prodotto identificato
+                    {t.list.scannedProduct}
                   </p>
                   <p className="text-lg font-bold text-white">
                     &ldquo;{scanResult.product}&rdquo;
@@ -871,7 +878,7 @@ export default function ShoppingList({
                     <div className="h-px bg-zinc-800" />
                     <div>
                       <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                        Prezzo rilevato
+                        {t.list.scannedPrice}
                       </p>
                       <p className="text-xl font-bold text-[#deff9a]">
                         €{scanResult.price.toFixed(2)}
@@ -881,21 +888,25 @@ export default function ShoppingList({
                 )}
                 <div className="h-px bg-zinc-800" />
                 <p className="text-xs text-zinc-500 italic leading-relaxed">
-                  {scanResult.explanation || "Nessuna descrizione aggiuntiva."}
+                  {scanResult.explanation || t.list.scanExplanation.replace("{explanation}", "")}
                 </p>
                 {scanResult.ocr_raw && (
                   <p className="text-xs text-zinc-600 font-mono">
-                    OCR: {scanResult.ocr_raw}
+                    {t.list.scanOcr.replace("{text}", scanResult.ocr_raw)}
                   </p>
                 )}
               </div>
 
               {/* Mensagem */}
               <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
-                L'articolo <strong className="text-white">&ldquo;{scanResult.product}&rdquo;</strong> non è nella tua lista.
-                {scanResult.price != null
-                  ? ` Vuoi aggiungerlo ora per €${scanResult.price.toFixed(2)}?`
-                  : " Vuoi aggiungerlo ora?"}
+                {t.list.scanConfirmMsg
+                  .replace("{name}", scanResult.product)
+                  .replace(
+                    "{priceMsg}",
+                    scanResult.price != null
+                      ? t.list.scanWithPrice.replace("{price}", scanResult.price.toFixed(2))
+                      : t.list.scanWithoutPrice
+                  )}
               </p>
 
               {/* Botões */}
@@ -908,7 +919,7 @@ export default function ShoppingList({
                   disabled={isAddingScanned}
                   className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
                 >
-                  No, grazie
+                  {t.list.scanNoThanks}
                 </button>
                 <button
                   onClick={handleAddScannedItem}
@@ -918,9 +929,7 @@ export default function ShoppingList({
                   {isAddingScanned ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    <>
-                      ✅ Sì, aggiungi
-                    </>
+                    t.list.scanAdd
                   )}
                 </button>
               </div>
