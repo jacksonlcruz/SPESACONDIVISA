@@ -48,7 +48,7 @@ export default function ShoppingList({
     const defaultPatterns = ["Lista della spesa", "Lista de compras", "Shopping list"];
     for (const pattern of defaultPatterns) {
       if (raw.includes(pattern)) {
-        const emoji = raw.match(/[\p{Emoji}]/u)?.[0] ?? "";
+        const emoji = raw.match(/([\uD800-\uDBFF][\uDC00-\uDFFF])/)?.[0] ?? "";
         return emoji ? `${emoji} ${t.list.defaultListTitle}` : t.list.defaultListTitle;
       }
     }

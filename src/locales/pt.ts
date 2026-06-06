@@ -5,33 +5,38 @@ import type { TranslationSchema } from "./types";
 
 const pt: TranslationSchema = {
   login: {
-    appName: "Spesa Condivisa",
-    tagline: "Sua lista de compras colaborativa",
+    title: "Spesa Condivisa",
+    subtitle: "Sua lista de compras colaborativa",
+    oauthNotConfigured: {
+      title: "Provedor não configurado",
+      message: "O provedor de acesso selecionado ainda não foi ativado. Contate o administrador ou use outro método de acesso."
+    },
+    oauthSessionExpired: {
+      title: "Sessão expirada",
+      message: "Sua sessão expirou. Por favor, tente novamente."
+    },
+    oauthTimeout: {
+      title: "Tempo expirado",
+      message: "O tempo para completar o acesso expirou. Tente novamente."
+    },
+    oauthGeneric: {
+      title: "Erro de autenticação",
+      message: "Ocorreu um erro durante o acesso. Tente novamente."
+    },
+    genericGoogleError: "Erro com Google",
+    genericAppleError: "Erro com Apple",
+    genericAuthError: "Erro de autenticação",
+    redirecting: "Redirecionando...",
     googleButton: "Continuar com Google",
-    googleRedirecting: "Redirecionando...",
     appleButton: "Continuar com Apple",
-    appleRedirecting: "Redirecionando...",
     divider: "ou",
     emailPlaceholder: "Email",
     passwordPlaceholder: "Senha",
-    signUpButton: "Registrar",
-    signInButton: "Entrar",
-    hasAccount: "Já tem uma conta? Entre",
-    noAccount: "Não tem uma conta? Registre-se",
+    signUp: "Registrar",
+    signIn: "Entrar",
+    signUpSwitch: "Não tem uma conta? Registre-se",
+    signInSwitch: "Já tem uma conta? Entre",
     checkEmail: "Verifique seu email para confirmar o registro!",
-    errorDefault: "Erro de autenticação",
-    errorProviderDisabled:
-      "O provedor de acesso selecionado ainda não foi ativado. Contate o administrador ou use outro método de acesso.",
-    errorSessionExpired: "Sua sessão expirou. Por favor, tente novamente.",
-    errorTimeout: "O tempo para completar o acesso expirou. Tente novamente.",
-    errorGeneric: "Ocorreu um erro durante o acesso. Tente novamente.",
-    providerNotConfigured: "Provedor não configurado",
-    sessionExpired: "Sessão expirada",
-    timeout: "Tempo expirado",
-    authError: "Erro de autenticação",
-    dismissAlert: "Fechar aviso",
-    errorWithGoogle: "Erro com Google",
-    errorWithApple: "Erro com Apple",
   },
 
   dashboard: {
@@ -56,6 +61,10 @@ const pt: TranslationSchema = {
     cloneList: "🔄 Copiar como nova lista",
     cloning: "Clonando...",
     cloneSuccess: "Lista clonada com sucesso! 🎉",
+    cloneError: "Erro ao clonar lista",
+    notAuthenticated: "Usuário não autenticado",
+    errorCreatingList: "Erro ao criar a lista",
+    unknownError: "Erro desconhecido",
     noDetails: "Nenhum detalhe disponível.",
     historyLabel: "📜 Histórico · {date}",
     close: "Fechar",
@@ -163,6 +172,7 @@ const pt: TranslationSchema = {
     scanAdd: "✅ Sim, adicionar",
     scanAdded: '"{name}" adicionado ao carrinho! 🛒 ({price})',
     scanAddedNoPrice: '"{name}" adicionado ao carrinho! 🛒 (sem preço)',
+    defaultListTitle: "Lista de compras",
   },
 
   settings: {

@@ -5,33 +5,38 @@ import type { TranslationSchema } from "./types";
 
 const en: TranslationSchema = {
   login: {
-    appName: "Spesa Condivisa",
-    tagline: "Your collaborative shopping list",
+    title: "Spesa Condivisa",
+    subtitle: "Your collaborative shopping list",
+    oauthNotConfigured: {
+      title: "Provider not configured",
+      message: "The selected login provider has not been enabled yet. Contact the administrator or use another login method."
+    },
+    oauthSessionExpired: {
+      title: "Session expired",
+      message: "Your session has expired. Please try logging in again."
+    },
+    oauthTimeout: {
+      title: "Time expired",
+      message: "The login time has expired. Try again."
+    },
+    oauthGeneric: {
+      title: "Authentication error",
+      message: "An error occurred during login. Please try again."
+    },
+    genericGoogleError: "Error with Google",
+    genericAppleError: "Error with Apple",
+    genericAuthError: "Authentication error",
+    redirecting: "Redirecting...",
     googleButton: "Continue with Google",
-    googleRedirecting: "Redirecting...",
     appleButton: "Continue with Apple",
-    appleRedirecting: "Redirecting...",
     divider: "or",
     emailPlaceholder: "Email",
     passwordPlaceholder: "Password",
-    signUpButton: "Sign Up",
-    signInButton: "Sign In",
-    hasAccount: "Already have an account? Sign In",
-    noAccount: "Don't have an account? Sign Up",
+    signUp: "Sign Up",
+    signIn: "Sign In",
+    signUpSwitch: "Don't have an account? Sign Up",
+    signInSwitch: "Already have an account? Sign In",
     checkEmail: "Check your email to confirm registration!",
-    errorDefault: "Authentication error",
-    errorProviderDisabled:
-      "The selected login provider has not been enabled yet. Contact the administrator or use another login method.",
-    errorSessionExpired: "Your session has expired. Please try logging in again.",
-    errorTimeout: "The login time has expired. Try again.",
-    errorGeneric: "An error occurred during login. Please try again.",
-    providerNotConfigured: "Provider not configured",
-    sessionExpired: "Session expired",
-    timeout: "Time expired",
-    authError: "Authentication error",
-    dismissAlert: "Dismiss alert",
-    errorWithGoogle: "Error with Google",
-    errorWithApple: "Error with Apple",
   },
 
   dashboard: {
@@ -56,6 +61,10 @@ const en: TranslationSchema = {
     cloneList: "🔄 Copy as new list",
     cloning: "Cloning...",
     cloneSuccess: "List cloned successfully! 🎉",
+    cloneError: "Error cloning list",
+    notAuthenticated: "User not authenticated",
+    errorCreatingList: "Error creating list",
+    unknownError: "Unknown error",
     noDetails: "No details available.",
     historyLabel: "📜 History · {date}",
     close: "Close",
@@ -164,6 +173,7 @@ const en: TranslationSchema = {
     scanAdd: "✅ Yes, add",
     scanAdded: '"{name}" added to cart! 🛒 ({price})',
     scanAddedNoPrice: '"{name}" added to cart! 🛒 (no price)',
+    defaultListTitle: "Shopping list",
   },
 
   settings: {

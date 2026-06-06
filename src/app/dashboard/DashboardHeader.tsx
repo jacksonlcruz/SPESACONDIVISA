@@ -3,20 +3,20 @@
 import { useState } from "react";
 import { LogOut, BarChart3, Settings } from "lucide-react";
 import SettingsModal from "@/components/SettingsModal";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation, type SupportedLocale } from "@/hooks/useTranslation";
 
 // ──────────────────────────────────────────────────────────
 // Client Component: Header do Dashboard
 // Gerencia o estado do modal de configurações + seletor de idioma
 // ──────────────────────────────────────────────────────────
 export default function DashboardHeader() {
-  const { t } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
 
-  const languages: { code: Locale; label: string }[] = [
-    { code: "it", label: t.language.it },
-    { code: "pt", label: t.language.pt },
-    { code: "en", label: t.language.en },
+  const languages: { code: SupportedLocale; label: string }[] = [
+    { code: "it" as SupportedLocale, label: t.settings.italian },
+    { code: "pt" as SupportedLocale, label: t.settings.portuguese },
+    { code: "en" as SupportedLocale, label: t.settings.english },
   ];
 
   return (
