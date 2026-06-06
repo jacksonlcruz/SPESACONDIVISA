@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import { ArrowLeft, TrendingUp, ShoppingBag, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslation } from "@/contexts/LanguageContext";
 import clsx from "clsx";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -72,7 +71,6 @@ function formatEuro(value: number, locale: string): string {
 export default function StatsDashboard({ initialItems }: StatsDashboardProps) {
   const { t, locale } = useTranslation();
   const router = useRouter();
-  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("month");
 
   const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : "it-IT";

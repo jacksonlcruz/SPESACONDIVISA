@@ -4,15 +4,13 @@ import { useState } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { useTranslation } from "@/contexts/LanguageContext";
 import toast from "react-hot-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function CreateListButton({ userId }: { userId: string }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { t, locale } = useTranslation();
 
   const defaultListTitle =
     locale === "pt"
