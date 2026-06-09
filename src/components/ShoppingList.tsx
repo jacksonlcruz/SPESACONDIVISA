@@ -26,6 +26,12 @@ interface ShoppingListProps {
 // ── Título padrão "Lista della spesa" — substituído dinamicamente ──
 const DEFAULT_TITLES = ["Lista della spesa", "Lista de compras", "Shopping list"];
 
+// ── Estado discriminado para modais de item (mutuamente exclusivos) ──
+type ItemModalState =
+  | { type: "price"; item: ListItem }
+  | { type: "edit"; item: ListItem }
+  | null;
+
 // ──────────────────────────────────────────────────────────
 // Componente: ShoppingList
 // ──────────────────────────────────────────────────────────
@@ -55,10 +61,9 @@ export default function ShoppingList({
     return raw;
   }, [t.list.defaultListTitle]);
 
-  // Estado do modal de preço
-  const [modalItem, setModalItem] = useState<ListItem | null>(null);
-  // Estado do modal de edição de item
-  const [editItem, setEditItem] = useState<ListItem | null>(null);
+  // ── Estado discriminado único: substitui modalItem + editItem ──
+  const [activeItemModal, setActiveItemModal] = useState<ItemModalState>(null);
+
   // Estado do campo de novo item
   const [newItemName, setNewItemName]   = useState("");
   const [isAdding, setIsAdding]         = useState(false);
@@ -100,23 +105,24 @@ export default function ShoppingList({
   // Sync título se prop mudar externamente
   useEffect(() => { setTitleValue(listTitle); }, [listTitle]);
 
-  // ── Abre o modal quando usuário dá check ─────────────────
+  // ── Abre o modal de preço quando usuário marca item ────────
   const handleCheckClick = useCallback((item: ListItem) => {
-    setModalItem(item);
+    setActiveItemModal({ type: "price", item });
   }, []);
 
   // ── Confirma valores do modal (manual ou IA) ─────────────
   const handleModalConfirm = useCallback(
     async (qty: number, price: number, aiData?: Partial<AiMatchResult>) => {
-      if (!modalItem) return;
+      const current = activeItemModal;
+      if (!current || current.type !== "price") return;
       try {
-        await checkItem(modalItem.id, qty, price);
+        await checkItem(current.item.id, qty, price);
         if (aiData?.matched_label) {
           fetch("/api/lists/update-ai-data", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              itemId: modalItem.id,
+              itemId: current.item.id,
               aiMatchedLabel: aiData.matched_label,
               ocrRawPrice: aiData.ocr_raw,
             }),
@@ -127,10 +133,10 @@ export default function ShoppingList({
       } catch {
         toast.error(t.list.itemAddError);
       } finally {
-        setModalItem(null);
+        setActiveItemModal(null);
       }
     },
-    [modalItem, checkItem, t.list.itemAdded, t.list.itemAddError]
+    [activeItemModal, checkItem, t.list.itemAdded, t.list.itemAddError]
   );
 
   // ── Adiciona novo item à lista ────────────────────────────
@@ -327,7 +333,8 @@ export default function ShoppingList({
           ai_matched_label: result.product,
           ocr_raw_price: result.ocr_raw,
         };
-        setModalItem(preFilledItem);
+        // Abre o modal de preço com o item pré-preenchido pelo scan
+        setActiveItemModal({ type: "price", item: preFilledItem });
         setScanResult(null);
       } else {
         setShowScanNewItemModal(true);
@@ -511,7 +518,7 @@ export default function ShoppingList({
                       onCheck={handleCheckClick}
                       onUncheck={uncheckItem}
                       onDelete={handleDelete}
-                      onEdit={setEditItem}
+                      onEdit={(item) => setActiveItemModal({ type: "edit", item })}
                     />
                   ))}
                 </div>
@@ -533,7 +540,7 @@ export default function ShoppingList({
                       onCheck={handleCheckClick}
                       onUncheck={uncheckItem}
                       onDelete={handleDelete}
-                      onEdit={setEditItem}
+                      onEdit={(item) => setActiveItemModal({ type: "edit", item })}
                     />
                   ))}
                 </div>
@@ -603,14 +610,14 @@ export default function ShoppingList({
         </div>
       )}
 
-      {/* Modal de preço */}
-      {modalItem && (
+      {/* Modal de preço (aberto via checkbox) — mutuamente exclusivo com EditItemModal */}
+      {activeItemModal?.type === "price" && (
         <PriceModal
-          item={modalItem}
+          item={activeItemModal.item}
           listItems={items}
           currentCartTotal={totals.totalSpent}
           onConfirm={handleModalConfirm}
-          onClose={() => setModalItem(null)}
+          onClose={() => setActiveItemModal(null)}
         />
       )}
 
@@ -782,17 +789,17 @@ export default function ShoppingList({
         </>
       )}
 
-      {/* Modal de edição de item (clique no card) */}
-      {editItem && (
+      {/* Modal de edição de item (clique no card) — mutuamente exclusivo com PriceModal */}
+      {activeItemModal?.type === "edit" && (
         <EditItemModal
-          item={editItem}
+          item={activeItemModal.item}
           onSave={handleEditSave}
           onUncheck={handleEditUncheck}
           onDelete={(id) => {
             deleteItem(id);
-            setEditItem(null);
+            setActiveItemModal(null);
           }}
-          onClose={() => setEditItem(null)}
+          onClose={() => setActiveItemModal(null)}
         />
       )}
 

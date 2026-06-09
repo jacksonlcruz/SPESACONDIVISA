@@ -31,7 +31,8 @@ const ShoppingListItem = memo(function ShoppingListItem({
   onDelete,
   onEdit,
 }: ShoppingListItemProps) {
-  const handleToggle = () => {
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!canEdit) return;
     if (item.is_checked) {
       onUncheck(item.id);
@@ -117,7 +118,10 @@ const ShoppingListItem = memo(function ShoppingListItem({
       {/* Botão deletar — sempre visível no mobile, discreto até hover */}
       {canEdit && (
         <button
-          onClick={() => onDelete(item.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item.id);
+          }}
           className="flex-shrink-0 p-2 rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:bg-red-500/20 active:text-red-400 transition-all"
           aria-label="Elimina articolo"
         >
