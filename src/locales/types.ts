@@ -151,6 +151,8 @@ export interface TranslationSchema {
     scanWithoutPrice: string;
     scanNoThanks: string;
     scanAdd: string;
+    scanAddWithQty: string;
+    scanConfirmQuantity: string;
     scanAdded: string;
     scanAddedNoPrice: string;
     defaultListTitle: string;

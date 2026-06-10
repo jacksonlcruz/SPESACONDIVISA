@@ -170,6 +170,8 @@ const pt: TranslationSchema = {
     scanWithoutPrice: "Quer adicioná-lo agora?",
     scanNoThanks: "Não, obrigado",
     scanAdd: "✅ Sim, adicionar",
+    scanAddWithQty: "✅ Adicionar {quantity}pz",
+    scanConfirmQuantity: 'O item "{name}" não está na sua lista. Defina a quantidade para {quantity}pz. {priceMsg}',
     scanAdded: '"{name}" adicionado ao carrinho! 🛒 ({price})',
     scanAddedNoPrice: '"{name}" adicionado ao carrinho! 🛒 (sem preço)',
     defaultListTitle: "Lista de compras",
