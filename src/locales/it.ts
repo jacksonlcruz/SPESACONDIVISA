@@ -171,6 +171,8 @@ const it: TranslationSchema = {
     scanWithoutPrice: "Vuoi aggiungerlo ora?",
     scanNoThanks: "No, grazie",
     scanAdd: "✅ Sì, aggiungi",
+    scanAddWithQty: "✅ Aggiungi {quantity}pz",
+    scanConfirmQuantity: 'L\'articolo "{name}" non è nella tua lista. Imposta la quantità a {quantity}pz. {priceMsg}',
     scanAdded: '"{name}" aggiunto al carrello! 🛒 ({price})',
     scanAddedNoPrice: '"{name}" aggiunto al carrello! 🛒 (senza prezzo)',
     defaultListTitle: "Lista della spesa",

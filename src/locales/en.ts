@@ -171,6 +171,8 @@ const en: TranslationSchema = {
     scanWithoutPrice: "Would you like to add it now?",
     scanNoThanks: "No, thanks",
     scanAdd: "✅ Yes, add",
+    scanAddWithQty: "✅ Add {quantity}pz",
+    scanConfirmQuantity: 'The item "{name}" is not in your list. Set the quantity to {quantity}pz. {priceMsg}',
     scanAdded: '"{name}" added to cart! 🛒 ({price})',
     scanAddedNoPrice: '"{name}" added to cart! 🛒 (no price)',
     defaultListTitle: "Shopping list",

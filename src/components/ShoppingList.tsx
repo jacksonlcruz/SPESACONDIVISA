@@ -12,6 +12,7 @@ import TotalDisplay from "./TotalDisplay";
 import PriceModal from "./PriceModal";
 import GeneralScanner from "./GeneralScanner";
 import EditItemModal from "./EditItemModal";
+import ScanConfirmModal from "./ScanConfirmModal";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { ListItem, AiMatchResult, ScanAnyResult } from "@/types";
 
@@ -343,8 +344,8 @@ export default function ShoppingList({
     [findSimilarItem]
   );
 
-  // ── Confirma adição do item scaneado ─────────────────────
-  const handleAddScannedItem = useCallback(async () => {
+  // ── Confirma adição do item scaneado (com quantidade definida) ──
+  const handleAddScannedItem = useCallback(async (quantity: number) => {
     if (!scanResult || isAddingScanned) return;
     setIsAddingScanned(true);
     try {
@@ -354,7 +355,7 @@ export default function ShoppingList({
       const { error: dbError } = await supabase.from("list_items").insert({
         list_id: listId,
         name: scanResult.product,
-        quantity: 1,
+        quantity,
         unit: "pz",
         unit_price: price,
         is_checked: true,
@@ -812,92 +813,17 @@ export default function ShoppingList({
         />
       )}
 
-      {/* Modal: Novo item scaneado (não está na lista) */}
+      {/* Modal de confirmação com seletor de quantidade (ScanConfirmModal) */}
       {showScanNewItemModal && scanResult && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/80 animate-fade-in"
-            onClick={() => {
-              setShowScanNewItemModal(false);
-              setScanResult(null);
-            }}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
-            <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
-              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#deff9a]/10 border border-[#deff9a]/20 mx-auto mb-5">
-                <span className="text-2xl">📦</span>
-              </div>
-              <h2 className="text-lg font-bold text-white text-center mb-3">
-                {t.list.scanNewProduct}
-              </h2>
-              <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl px-4 py-4 mb-5 space-y-3">
-                <div>
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                    {t.list.scannedProduct}
-                  </p>
-                  <p className="text-lg font-bold text-white">
-                    &ldquo;{scanResult.product}&rdquo;
-                  </p>
-                </div>
-                {scanResult.price != null && (
-                  <>
-                    <div className="h-px bg-zinc-800" />
-                    <div>
-                      <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                        {t.list.scannedPrice}
-                      </p>
-                      <p className="text-xl font-bold text-[#deff9a]">
-                        €{scanResult.price.toFixed(2)}
-                      </p>
-                    </div>
-                  </>
-                )}
-                <div className="h-px bg-zinc-800" />
-                <p className="text-xs text-zinc-500 italic leading-relaxed">
-                  {scanResult.explanation || t.list.scanExplanation.replace("{explanation}", "")}
-                </p>
-                {scanResult.ocr_raw && (
-                  <p className="text-xs text-zinc-600 font-mono">
-                    {t.list.scanOcr.replace("{text}", scanResult.ocr_raw)}
-                  </p>
-                )}
-              </div>
-              <p className="text-sm text-zinc-400 text-center mb-6 leading-relaxed">
-                {t.list.scanConfirmMsg
-                  .replace("{name}", scanResult.product)
-                  .replace(
-                    "{priceMsg}",
-                    scanResult.price != null
-                      ? t.list.scanWithPrice.replace("{price}", scanResult.price.toFixed(2))
-                      : t.list.scanWithoutPrice
-                  )}
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowScanNewItemModal(false);
-                    setScanResult(null);
-                  }}
-                  disabled={isAddingScanned}
-                  className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
-                >
-                  {t.list.scanNoThanks}
-                </button>
-                <button
-                  onClick={handleAddScannedItem}
-                  disabled={isAddingScanned}
-                  className="flex-1 py-3.5 rounded-2xl bg-[#deff9a] disabled:opacity-50 text-sm font-bold text-black transition-all active:scale-[0.97] flex items-center justify-center gap-2"
-                >
-                  {isAddingScanned ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    t.list.scanAdd
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <ScanConfirmModal
+          scanResult={scanResult}
+          onConfirm={(quantity) => handleAddScannedItem(quantity)}
+          onDismiss={() => {
+            setShowScanNewItemModal(false);
+            setScanResult(null);
+          }}
+          isAdding={isAddingScanned}
+        />
       )}
     </div>
   );
