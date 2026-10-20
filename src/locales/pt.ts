@@ -151,6 +151,8 @@ const pt: TranslationSchema = {
     itemAddError: "Não foi possível adicionar o item",
     itemSaveError: "Erro ao salvar",
     itemDeleteError: "Erro",
+    itemDeleted: "Item excluído 🗑️",
+    syncPending: "Sincronizando…",
     retry: "Tentar novamente",
     titleUpdated: "Nome atualizado ✓",
     titleSaveError: "Erro ao salvar",

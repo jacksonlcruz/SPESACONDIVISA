@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Loader2, AlertCircle, Users, X, Mail, Pencil, ChevronLeft, Trash2, Camera } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
+import { withTimeout } from "@/lib/async";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useShoppingCalculator } from "@/hooks/useShoppingCalculator";
 import ShoppingListItem from "./ShoppingListItem";
@@ -45,7 +46,7 @@ export default function ShoppingList({
   const { t, locale } = useTranslation();
   const router = useRouter();
 
-  const { items, loading, error, addItem, checkItem, uncheckItem, deleteItem, updateItem, finalizeItems, refetch } =
+  const { items, loading, error, connection, addItem, checkItem, uncheckItem, deleteItem, updateItem, finalizeItems, refetch } =
     useRealtimeList(listId);
 
   const totals = useShoppingCalculator(items);
@@ -74,6 +75,10 @@ export default function ShoppingList({
   // Estado do modal de exclusão da lista
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting]           = useState(false);
+  // Estado do modal de exclusão de ITEM (substitui o toast interativo,
+  // que ficava preso na tela no celular e obrigava a fechar o app)
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
   // Estado do modal de finalização de compra
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [isFinalizing, setIsFinalizing]           = useState(false);
@@ -195,9 +200,10 @@ export default function ShoppingList({
     if (!email || isSharing) return;
     setIsSharing(true);
     try {
-      const { error } = await supabase
+      const shareQuery = supabase
         .from("list_shares")
         .insert({ list_id: listId, invited_email: email, role: "editor" });
+      const { error } = await withTimeout(shareQuery);
       if (error) throw error;
       toast.success(t.list.shareSuccess.replace("{email}", email));
       setShareEmail("");
@@ -210,34 +216,50 @@ export default function ShoppingList({
     }
   }, [shareEmail, isSharing, listId, t.list.shareSuccess, t.list.alreadyInvited, t.list.shareError]);
 
-  // ── Delete com confirmação leve (toast) ──────────────────
-  const handleDelete = useCallback(
-    (itemId: string) => {
-      toast(
-        (toastItem) => (
-          <div className="flex items-center gap-3">
-            <span className="text-sm">{t.list.deleteItemConfirm}</span>
-            <button
-              className="text-red-500 font-bold text-sm"
-              onClick={() => {
-                deleteItem(itemId).catch(() => toast.error(t.list.itemDeleteError));
-                toast.dismiss(toastItem.id);
-              }}
-            >
-              {t.list.yesDelete}
-            </button>
-            <button
-              className="text-gray-500 text-sm"
-              onClick={() => toast.dismiss(toastItem.id)}
-            >
-              {t.list.cancel}
-            </button>
-          </div>
-        ),
-        { duration: 4000 }
-      );
+  // ── Exclusão de item: modal de confirmação ───────────────
+  // Antes era um toast interativo. No celular o react-hot-toast
+  // pausa o timer no "hover" (que fica preso após o toque), então
+  // o pop-up nunca desaparecia e obrigava a fechar o navegador.
+  const itemToDelete = useMemo(
+    () => (deleteItemId ? items.find((i) => i.id === deleteItemId) ?? null : null),
+    [deleteItemId, items]
+  );
+
+  const handleDelete = useCallback((itemId: string) => {
+    setDeleteItemId(itemId);
+  }, []);
+
+  const handleDeleteItemConfirm = useCallback(async () => {
+    if (!itemToDelete || isDeletingItem) return;
+    setIsDeletingItem(true);
+    try {
+      await deleteItem(itemToDelete.id);
+      toast.success(t.list.itemDeleted);
+      setDeleteItemId(null);
+    } catch {
+      toast.error(t.list.itemDeleteError);
+    } finally {
+      setIsDeletingItem(false);
+    }
+  }, [
+    itemToDelete,
+    isDeletingItem,
+    deleteItem,
+    t.list.itemDeleted,
+    t.list.itemDeleteError,
+  ]);
+
+  // ── "Desmarcar" direto na linha (sem modal) ──────────────
+  const handleToggleUncheck = useCallback(
+    async (itemId: string) => {
+      try {
+        await uncheckItem(itemId);
+        toast.success(t.list.itemRemoved);
+      } catch {
+        toast.error(t.list.itemDeleteError);
+      }
     },
-    [deleteItem, t.list.deleteItemConfirm, t.list.yesDelete, t.list.cancel, t.list.itemDeleteError]
+    [uncheckItem, t.list.itemRemoved, t.list.itemDeleteError]
   );
 
   // ── Separa itens: pendentes vs marcados ──────────────────
@@ -253,7 +275,9 @@ export default function ShoppingList({
       const isComplete = pendingItems.length === 0;
       await finalizeItems(checkedIds);
       if (isComplete) {
-        await supabase.from("lists").update({ is_archived: true }).eq("id", listId);
+        await withTimeout(
+          supabase.from("lists").update({ is_archived: true }).eq("id", listId)
+        );
         toast.success(t.list.finalizeSuccess);
         router.push("/dashboard");
       } else {
@@ -277,10 +301,12 @@ export default function ShoppingList({
     if (isDeleting) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      const deleteListQuery = supabase
         .from("lists")
         .delete()
         .eq("id", listId);
+
+      const { error } = await withTimeout(deleteListQuery);
       if (error) throw error;
       toast.success(t.list.deleteListSuccess);
       router.push("/dashboard");
@@ -349,21 +375,16 @@ export default function ShoppingList({
     if (!scanResult || isAddingScanned) return;
     setIsAddingScanned(true);
     try {
-      const maxOrder = items.reduce((m, i) => Math.max(m, i.sort_order), 0);
       const price = scanResult.price ?? null;
 
-      const { error: dbError } = await supabase.from("list_items").insert({
-        list_id: listId,
-        name: scanResult.product,
+      // Passa pelo hook: aparece na hora + rollback se o insert falhar
+      await addItem(scanResult.product, {
         quantity,
-        unit: "pz",
-        unit_price: price,
-        is_checked: true,
-        sort_order: maxOrder + 1,
-        ai_matched_label: scanResult.product,
-        ocr_raw_price: scanResult.ocr_raw,
+        unitPrice: price,
+        isChecked: true,
+        aiMatchedLabel: scanResult.product,
+        ocrRawPrice: scanResult.ocr_raw,
       });
-      if (dbError) throw new Error(dbError.message);
 
       const priceStr = price != null ? `€${price.toFixed(2)}` : t.list.scanAddedNoPrice.split("(")[1]?.replace(")", "") ?? "senza prezzo";
       toast.success(t.list.scanAdded.replace("{name}", scanResult.product).replace("{price}", priceStr));
@@ -374,7 +395,7 @@ export default function ShoppingList({
     } finally {
       setIsAddingScanned(false);
     }
-  }, [scanResult, isAddingScanned, items, listId, t.list]);
+  }, [scanResult, isAddingScanned, addItem, t.list]);
 
   // ── Salvar edição de item (EditItemModal) ────────────────
   const handleEditSave = useCallback(
@@ -480,23 +501,34 @@ export default function ShoppingList({
             </button>
           )}
         </div>
+
+        {/* Indicador discreto de sincronização: só aparece quando o
+            canal Realtime cai. As ações continuam funcionando (update
+            otimista) e o hook reconecta sozinho. */}
+        {connection === "offline" && (
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-amber-400/90">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+            {t.list.syncPending}
+          </div>
+        )}
       </div>
 
       {/* Painel de totais (sticky) */}
       <TotalDisplay {...totals} />
 
-      {/* Conteúdo principal */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Conteúdo principal — min-h-0 evita que o flex item "estoure"
+          a altura da tela (o que empurrava o rodapé para fora no mobile) */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {loading ? (
           <div className="flex items-center justify-center h-40">
             <Loader2 size={28} className="animate-spin text-accent" />
           </div>
-        ) : error ? (
+        ) : error && items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 p-8 text-center">
             <AlertCircle size={36} className="text-red-400" />
             <p className="text-sm text-red-400">{error}</p>
             <button
-              onClick={refetch}
+              onClick={() => refetch()}
               className="text-sm text-accent underline"
             >
               {t.list.retry}
@@ -517,7 +549,7 @@ export default function ShoppingList({
                       item={item}
                       canEdit={canEdit}
                       onCheck={handleCheckClick}
-                      onUncheck={uncheckItem}
+                      onUncheck={handleToggleUncheck}
                       onDelete={handleDelete}
                       onEdit={(item) => setActiveItemModal({ type: "edit", item })}
                     />
@@ -539,7 +571,7 @@ export default function ShoppingList({
                       item={item}
                       canEdit={canEdit}
                       onCheck={handleCheckClick}
-                      onUncheck={uncheckItem}
+                      onUncheck={handleToggleUncheck}
                       onDelete={handleDelete}
                       onEdit={(item) => setActiveItemModal({ type: "edit", item })}
                     />
@@ -790,15 +822,66 @@ export default function ShoppingList({
         </>
       )}
 
+      {/* Modal de confirmação de exclusão de ITEM */}
+      {itemToDelete && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/80 animate-fade-in"
+            onClick={() => !isDeletingItem && setDeleteItemId(null)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+            <div className="w-full max-w-sm bg-[#111] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-slide-up">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-5">
+                <Trash2 size={26} className="text-red-400" />
+              </div>
+              <h2 className="text-lg font-bold text-white text-center mb-2">
+                {t.list.deleteItem}
+              </h2>
+              <p className="text-sm text-zinc-400 text-center mb-7">
+                {t.list.deleteItemConfirm.replace("{name}", itemToDelete.name)}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteItemId(null)}
+                  disabled={isDeletingItem}
+                  className="flex-1 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
+                >
+                  {t.list.cancel}
+                </button>
+                <button
+                  onClick={handleDeleteItemConfirm}
+                  disabled={isDeletingItem}
+                  className="flex-1 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-sm font-bold text-white transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+                >
+                  {isDeletingItem ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 size={15} />
+                      {t.list.yesDelete}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Modal de edição de item (clique no card) — mutuamente exclusivo com PriceModal */}
       {activeItemModal?.type === "edit" && (
         <EditItemModal
           item={activeItemModal.item}
           onSave={handleEditSave}
           onUncheck={handleEditUncheck}
-          onDelete={(id) => {
-            deleteItem(id);
-            setActiveItemModal(null);
+          onDelete={async (id) => {
+            try {
+              await deleteItem(id);
+              toast.success(t.list.itemDeleted);
+              setActiveItemModal(null);
+            } catch {
+              toast.error(t.list.itemDeleteError);
+            }
           }}
           onClose={() => setActiveItemModal(null)}
         />

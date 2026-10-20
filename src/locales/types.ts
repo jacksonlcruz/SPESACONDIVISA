@@ -132,6 +132,9 @@ export interface TranslationSchema {
     itemAddError: string;
     itemSaveError: string;
     itemDeleteError: string;
+    itemDeleted: string;
+    /** Indicador de sincronização (Realtime reconectando) */
+    syncPending: string;
     retry: string;
     titleUpdated: string;
     titleSaveError: string;

@@ -3,3 +3,8 @@ node_modules
 .env
 .next/
 tsconfig.tsbuildinfo
+# Artefatos gerados por service workers antigos (next-pwa/Workbox)
+public/precache.*.js
+public/workbox-*.js
+public/fallback-*.js
+public/swe-worker-*.js
