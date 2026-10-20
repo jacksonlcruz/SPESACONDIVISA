@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { withTimeout } from "@/lib/async";
 import { guessIsFoodFlag } from "@/lib/foodCategory";
+import { isMissingColumnError } from "@/lib/supabaseErrors";
 import type { ListItem } from "@/types";
 
 // ──────────────────────────────────────────────────────────
@@ -359,25 +360,42 @@ export function useRealtimeList(listId: string) {
       // Aparece na tela imediatamente (não espera o WebSocket)
       setItems((prev) => sortItems([...prev, optimistic]));
 
-      const insertQuery = supabase
-        .from("list_items")
-        .insert({
-          id: newId,          // ID definitivo, gerado no cliente
-          list_id: listId,
-          name: trimmed,
-          quantity,
-          unit: "pz",
-          unit_price: unitPrice,
-          is_checked: isChecked,
-          ai_matched_label: extras.aiMatchedLabel ?? null,
-          ocr_raw_price: extras.ocrRawPrice ?? null,
-          sort_order: maxOrder + 1,
-          is_food: isFood,
-        })
-        .select("*")
-        .single();
+      // Campos comuns a todas as tentativas de insert
+      const itemFields = {
+        id: newId,          // ID definitivo, gerado no cliente
+        list_id: listId,
+        name: trimmed,
+        quantity,
+        unit: "pz",
+        unit_price: unitPrice,
+        is_checked: isChecked,
+        ai_matched_label: extras.aiMatchedLabel ?? null,
+        ocr_raw_price: extras.ocrRawPrice ?? null,
+        sort_order: maxOrder + 1,
+      };
 
-      const { data, error: dbError } = await withTimeout(insertQuery);
+      let attempt = await withTimeout(
+        supabase
+          .from("list_items")
+          .insert({ ...itemFields, is_food: isFood })
+          .select("*")
+          .single()
+      );
+
+      // Ambiente sem a migração de `is_food`: repete o insert sem a
+      // coluna. O item entra normalmente e a categoria continua sendo
+      // inferida localmente (guessIsFoodFlag) até a migração rodar.
+      if (attempt.error && isMissingColumnError(attempt.error, "is_food")) {
+        console.warn(
+          "[list_items] Coluna is_food ausente no banco: insert refeito sem a categoria. " +
+            "Rode a migração de supabase/schema.sql para persistir a categoria."
+        );
+        attempt = await withTimeout(
+          supabase.from("list_items").insert(itemFields).select("*").single()
+        );
+      }
+
+      const { data, error: dbError } = attempt;
 
       if (dbError || !data) {
         // Rollback: remove o item fantasma
@@ -385,7 +403,11 @@ export function useRealtimeList(listId: string) {
         throw new Error(dbError?.message ?? "Impossibile aggiungere l'articolo");
       }
 
-      const saved = data as ListItem;
+      // Sem a coluna, o banco devolve is_food ausente: mantém o palpite local
+      const saved: ListItem = {
+        ...(data as ListItem),
+        is_food: (data as ListItem).is_food ?? isFood,
+      };
       // Substitui o registro otimista pela versão oficial do banco
       // (updated_at, subtotal, defaults). Se o Realtime já trouxe a
       // linha, o resultado é idêntico — a operação é idempotente.
@@ -521,12 +543,25 @@ export function useRealtimeList(listId: string) {
         })
       );
 
-      const patchQuery = supabase
-        .from("list_items")
-        .update(patch)
-        .eq("id", itemId);
+      const runPatch = (body: typeof patch) =>
+        withTimeout(supabase.from("list_items").update(body).eq("id", itemId));
 
-      const { error: dbError } = await withTimeout(patchQuery);
+      let { error: dbError } = await runPatch(patch);
+
+      // Ambiente sem a migração de `is_food`: salva o restante do patch
+      // (quantidade/preço) e mantém a categoria apenas no estado local.
+      if (
+        dbError &&
+        patch.is_food !== undefined &&
+        isMissingColumnError(dbError, "is_food")
+      ) {
+        console.warn(
+          "[list_items] Coluna is_food ausente no banco: atualização refeita sem a categoria."
+        );
+        const patchWithoutFood = { ...patch };
+        delete patchWithoutFood.is_food;
+        ({ error: dbError } = await runPatch(patchWithoutFood));
+      }
 
       if (dbError) {
         if (previous) {

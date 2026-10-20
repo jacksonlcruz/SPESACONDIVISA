@@ -499,9 +499,17 @@ alter table public.list_items add column if not exists is_food boolean;
 create index if not exists idx_list_items_food on public.list_items(list_id, is_food);
 ```
 
-Ou re-execute `supabase/schema.sql` (o bloco é idempotente — `add column if not exists`).
+Também deixei o SQL pronto em `supabase/migration-add-is-food.sql` (só abrir e colar).
 
-Arquivos envolvidos: `src/lib/foodCategory.ts`, `src/hooks/useShoppingCalculator.ts`,
+> **Sintoma de migração não aplicada:** a lista é criada normalmente, mas qualquer
+> tentativa de adicionar item falha com `column list_items.is_food does not exist`
+> (código `42703`). O app trata isso: o insert é refeito sem a coluna (aviso no
+> console do navegador) e o item é salvo normalmente, com a categoria apenas no
+> palpite local. A categoria só passa a ser persistida de fato depois de rodar a
+> migração acima.
+
+Arquivos envolvidos: `src/lib/foodCategory.ts`, `src/lib/supabaseErrors.ts`,
+`src/hooks/useShoppingCalculator.ts`,
 `src/components/TotalDisplay.tsx`, `src/components/ShoppingListItem.tsx`,
 `src/components/EditItemModal.tsx`, `src/components/ScanConfirmModal.tsx`,
 `src/app/api/ai/scan-any/route.ts`.
