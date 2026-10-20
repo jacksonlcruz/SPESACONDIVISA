@@ -161,6 +161,11 @@ export type Database = {
         Args: { p_list_id: string };
         Returns: boolean;
       };
+      // Keep-alive do plano Free do Supabase — ver supabase/keep-alive.sql
+      keep_alive: {
+        Args: Record<string, never>;
+        Returns: { last_ping_at: string; ping_total: number }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
