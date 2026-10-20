@@ -5,11 +5,18 @@ import { X, Euro, Trash2, ShoppingCart } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import type { ListItem } from "@/types";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
+import { useTranslation } from "@/hooks/useTranslation";
+import { isFoodItem } from "@/lib/foodCategory";
 import clsx from "clsx";
 
 interface EditItemModalProps {
   item: ListItem;
-  onSave: (itemId: string, quantity: number, unitPrice: number | null) => Promise<void>;
+  onSave: (
+    itemId: string,
+    quantity: number,
+    unitPrice: number | null,
+    isFood: boolean
+  ) => Promise<void>;
   onUncheck?: (itemId: string) => Promise<void>;
   onDelete: (itemId: string) => void | Promise<void>;
   onClose: () => void;
@@ -20,6 +27,7 @@ interface EditItemModalProps {
 //
 // Modal de edição de item. Permite:
 //  • Alterar quantidade (PZ) e preço unitário
+//  • Corrigir a categoria (alimentício x não alimentício)
 //  • Salvar alterações no Supabase
 //  • Remover do carrinho (se is_checked)
 //  • Excluir o item permanentemente
@@ -31,10 +39,13 @@ export default function EditItemModal({
   onDelete,
   onClose,
 }: EditItemModalProps) {
+  const { t } = useTranslation();
   const [quantity, setQuantity] = useState<string>(String(item.quantity));
   const [unitPrice, setUnitPrice] = useState<string>(
     item.unit_price != null ? String(item.unit_price) : ""
   );
+  // Categoria: começa com a classificação efetiva (banco > palpite)
+  const [isFood, setIsFood] = useState<boolean>(isFoodItem(item));
   const [isSaving, setIsSaving] = useState(false);
   const [isUnchecking, setIsUnchecking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,7 +60,7 @@ export default function EditItemModal({
     if (isSaving || qty <= 0) return;
     setIsSaving(true);
     try {
-      await onSave(item.id, qty, price);
+      await onSave(item.id, qty, price, isFood);
       onClose();
     } catch {
       // erro tratado pelo pai
@@ -176,6 +187,41 @@ export default function EditItemModal({
                 </span>
               </div>
             )}
+
+            {/* Categoria: alimentício x não alimentício */}
+            <div>
+              <label className="block text-xs font-semibold text-zinc-500 mb-1.5 uppercase tracking-wide">
+                {t.list.categoryLabel}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFood(true)}
+                  aria-pressed={isFood}
+                  className={clsx(
+                    "py-3 rounded-2xl text-sm font-semibold border flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98]",
+                    isFood
+                      ? "bg-[#deff9a] text-black border-[#deff9a]"
+                      : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800"
+                  )}
+                >
+                  <span aria-hidden>🍎</span> {t.list.foodLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFood(false)}
+                  aria-pressed={!isFood}
+                  className={clsx(
+                    "py-3 rounded-2xl text-sm font-semibold border flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98]",
+                    !isFood
+                      ? "bg-[#deff9a] text-black border-[#deff9a]"
+                      : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800"
+                  )}
+                >
+                  <span aria-hidden>🧴</span> {t.list.nonFoodLabel}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Botões de ação */}

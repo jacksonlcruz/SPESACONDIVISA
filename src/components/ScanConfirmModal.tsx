@@ -85,6 +85,21 @@ export default function ScanConfirmModal({
               </>
             )}
 
+            {/* Categoria detectada pela IA (informativo) */}
+            {scanResult.is_food != null && (
+              <>
+                <div className="h-px bg-zinc-800" />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider">
+                    {t.list.categoryLabel}
+                  </p>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">
+                    {scanResult.is_food ? `🍎 ${t.list.foodLabel}` : `🧴 ${t.list.nonFoodLabel}`}
+                  </span>
+                </div>
+              </>
+            )}
+
             <div className="h-px bg-zinc-800" />
 
             <p className="text-xs text-zinc-500 italic leading-relaxed">

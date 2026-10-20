@@ -7,7 +7,7 @@
 //  Recebe:
 //    - imageBase64: imagem da etiqueta em base64 (data URL)
 //
-//  Retorna: ScanAnyResult { product, price, ocr_raw, confidence, explanation }
+//  Retorna: ScanAnyResult { product, price, ocr_raw, confidence, explanation, is_food }
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
 2. Estrai il prezzo associato al prodotto. Ignora prezzi di prodotti vicini, codici a barre o testi promozionali non pertinenti.
 3. Converti il prezzo in un numero decimale puro (usa il punto come separatore decimale, es. 1.50).
 4. Se l'immagine non contiene un prodotto riconoscibile, restituisci product come stringa vuota e price come null.
+5. Classifica il prodotto in base alla sua natura merceologica:
+   - "is_food": true → prodotto alimentare oppure bevanda NON alcolica destinata al consumo umano (pasta, latte, frutta, carne, pane, acqua, succhi, bibite/refrigeranti come Fanta, Coca-Cola, Sprite, Pepsi, energizzanti, caffè, tè, surgelati, snack, dolci…).
+   - "is_food": false → prodotto non alimentare (detersivi, detergenti, igiene personale, carta, sacchetti, stoviglie, pile, prodotti per animali, casalinghi…) e anche QUALSIASI bevanda alcolica (vino, birra, spumante, prosecco, superalcolici, liquori, cocktail come spritz o mojito), perché i ticket alimentari dell'utente non coprono l'alcol.
+   - Eccezione: le bevande dichiarate "analcoliche" (es. birra analcolica, vino senza alcol, "alcohol free") sono true.
+   - In caso di dubbio, se il prodotto si trova abitualmente nel reparto alimentari usa true, altrimenti false.
 
 ## Formato della Risposta (lingua di output: Italiano)
 Rispondi SOLO con un oggetto JSON valido, senza markdown, senza testo fuori dal JSON.
@@ -55,7 +60,8 @@ Schema obbligatorio:
   "price": <prezzo float in euro con punto decimale, o null se non leggibile>,
   "ocr_raw": "<frammento testuale grezzo estratto per audit, max 200 caratteri>",
   "confidence": <float 0.0-1.0>,
-  "explanation": "<breve frase in italiano su cosa è stato identificato>"
+  "explanation": "<breve frase in italiano su cosa è stato identificato>",
+  "is_food": <true se è un alimento o bevanda non alcolica, false se non alimentare o se è una bevanda alcolica>
 }
 
 ## Restrizioni
@@ -105,6 +111,9 @@ Schema obbligatorio:
         ocr_raw: String(parsed.ocr_raw ?? "").slice(0, 200),
         confidence: Math.min(1, Math.max(0, Number(parsed.confidence) || 0)),
         explanation: String(parsed.explanation ?? "").slice(0, 300),
+        // Categoria alimentar: só aceita booleano; qualquer outra
+        // coisa vira null (o app então usa o palpite local)
+        is_food: typeof parsed.is_food === "boolean" ? parsed.is_food : null,
       };
 
       // Se não identificou produto, retorna erro amigável

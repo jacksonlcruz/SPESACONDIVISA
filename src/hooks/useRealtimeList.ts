@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { withTimeout } from "@/lib/async";
+import { guessIsFoodFlag } from "@/lib/foodCategory";
 import type { ListItem } from "@/types";
 
 // ──────────────────────────────────────────────────────────
@@ -38,6 +39,8 @@ export interface AddItemExtras {
   isChecked?: boolean;
   aiMatchedLabel?: string | null;
   ocrRawPrice?: string | null;
+  /** Categoria vinda da IA (true = alimentício, false = não) */
+  isFood?: boolean | null;
 }
 
 /** Timeout de cada requisição REST (evita spinner infinito em rede ruim) */
@@ -320,6 +323,11 @@ export function useRealtimeList(listId: string) {
       const quantity = extras.quantity ?? 1;
       const unitPrice = extras.unitPrice ?? null;
       const isChecked = extras.isChecked ?? false;
+      // Categoria: IA > dicionário local > null (desconhecido).
+      // O palpite local evita itens "sem categoria" quando o
+      // usuário digita o nome à mão (ou a IA não soube responder).
+      const isFood =
+        extras.isFood != null ? extras.isFood : guessIsFoodFlag(trimmed);
 
       const maxOrder = itemsRef.current.reduce(
         (m, i) => Math.max(m, i.sort_order ?? 0),
@@ -343,6 +351,7 @@ export function useRealtimeList(listId: string) {
         sort_order: maxOrder + 1,
         status: "pending",
         purchased_at: null,
+        is_food: isFood,
         created_at: now,
         updated_at: now,
       };
@@ -363,6 +372,7 @@ export function useRealtimeList(listId: string) {
           ai_matched_label: extras.aiMatchedLabel ?? null,
           ocr_raw_price: extras.ocrRawPrice ?? null,
           sort_order: maxOrder + 1,
+          is_food: isFood,
         })
         .select("*")
         .single();
@@ -472,15 +482,24 @@ export function useRealtimeList(listId: string) {
     }
   }, []);
 
-  // Atualiza quantidade e/ou preço unitário de um item
+  // Atualiza quantidade, preço unitário e/ou categoria de um item
   const updateItem = useCallback(
     async (
       itemId: string,
-      updates: { quantity?: number; unit_price?: number | null }
+      updates: {
+        quantity?: number;
+        unit_price?: number | null;
+        is_food?: boolean | null;
+      }
     ) => {
-      const patch: { quantity?: number; unit_price?: number | null } = {};
+      const patch: {
+        quantity?: number;
+        unit_price?: number | null;
+        is_food?: boolean | null;
+      } = {};
       if (updates.quantity !== undefined) patch.quantity = updates.quantity;
       if (updates.unit_price !== undefined) patch.unit_price = updates.unit_price;
+      if (updates.is_food !== undefined) patch.is_food = updates.is_food;
       if (Object.keys(patch).length === 0) return;
 
       const previous = itemsRef.current.find((i) => i.id === itemId);
@@ -496,6 +515,8 @@ export function useRealtimeList(listId: string) {
             quantity,
             unit_price: unitPrice,
             subtotal: unitPrice !== null ? quantity * unitPrice : 0,
+            is_food:
+              patch.is_food !== undefined ? patch.is_food : i.is_food,
           };
         })
       );

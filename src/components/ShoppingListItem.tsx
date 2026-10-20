@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Trash2 } from "lucide-react";
 import type { ListItem } from "@/types";
 import { formatCurrency } from "@/hooks/useShoppingCalculator";
+import { isFoodItem } from "@/lib/foodCategory";
 import clsx from "clsx";
 
 interface ShoppingListItemProps {
@@ -46,6 +47,9 @@ const ShoppingListItem = memo(function ShoppingListItem({
     onEdit(item);
   };
 
+  // Categoria alimentar (banco > palpite local) — usada no chip
+  const isFood = isFoodItem(item);
+
   return (
     <div
       onClick={handleCardClick}
@@ -77,14 +81,27 @@ const ShoppingListItem = memo(function ShoppingListItem({
 
       {/* Nome e informações */}
       <div className="flex-1 min-w-0">
-        <p
-          className={clsx(
-            "text-base font-medium leading-tight truncate transition-all",
-            item.is_checked ? "line-through text-zinc-600" : "text-zinc-100"
-          )}
-        >
-          {item.name}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Chip de categoria: 🍎 alimentício / 🧴 não alimentício */}
+          <span
+            className={clsx(
+              "flex-shrink-0 text-[11px] leading-none",
+              item.is_checked && "opacity-50"
+            )}
+            title={isFood ? "Alimentare" : "Non alimentare"}
+            aria-hidden
+          >
+            {isFood ? "🍎" : "🧴"}
+          </span>
+          <p
+            className={clsx(
+              "text-base font-medium leading-tight truncate transition-all",
+              item.is_checked ? "line-through text-zinc-600" : "text-zinc-100"
+            )}
+          >
+            {item.name}
+          </p>
+        </div>
 
         {/* Detalhe: quantidade e preço (apenas quando marcado) */}
         {item.is_checked && item.unit_price !== null ? (
