@@ -366,7 +366,13 @@ export default function ShoppingList({
         // Item ainda sem categoria? Persiste a classificação da IA
         // em background (sem travar o fluxo do scanner).
         if (matched.is_food === null && result.is_food !== null) {
-          void updateItem(matched.id, { is_food: result.is_food });
+          // Falha aqui não interrompe o scanner: o item já foi criado
+          // e a categoria cai no palpite local.
+          void updateItem(matched.id, { is_food: result.is_food }).catch(
+            (error) => {
+              console.warn("[scan] Categoria não salva:", error);
+            }
+          );
         }
 
         // Abre o modal de preço com o item pré-preenchido pelo scan
