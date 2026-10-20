@@ -103,6 +103,16 @@ export interface TranslationSchema {
     deleteIrreversible: string;
     delete: string;
     cartTotal: string;
+    /** Subtítulo do total de itens alimentícios no carrinho */
+    foodTotal: string;
+    /** Subtítulo do total de itens não alimentícios no carrinho */
+    nonFoodTotal: string;
+    /** Rótulo genérico de categoria (usado no modal do scanner) */
+    categoryLabel: string;
+    /** Categoria "alimentício" (singular) */
+    foodLabel: string;
+    /** Categoria "não alimentício" (singular) */
+    nonFoodLabel: string;
     estimateTotal: string;
     noPriceWarning: string;
     progressLabel: string;

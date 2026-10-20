@@ -359,7 +359,16 @@ export default function ShoppingList({
           unit_price: result.price ?? matched.unit_price,
           ai_matched_label: result.product,
           ocr_raw_price: result.ocr_raw,
+          // Precedência: categoria já gravada no banco > IA
+          is_food: matched.is_food ?? result.is_food,
         };
+
+        // Item ainda sem categoria? Persiste a classificação da IA
+        // em background (sem travar o fluxo do scanner).
+        if (matched.is_food === null && result.is_food !== null) {
+          void updateItem(matched.id, { is_food: result.is_food });
+        }
+
         // Abre o modal de preço com o item pré-preenchido pelo scan
         setActiveItemModal({ type: "price", item: preFilledItem });
         setScanResult(null);
@@ -367,7 +376,7 @@ export default function ShoppingList({
         setShowScanNewItemModal(true);
       }
     },
-    [findSimilarItem]
+    [findSimilarItem, updateItem]
   );
 
   // ── Confirma adição do item scaneado (com quantidade definida) ──
@@ -384,6 +393,8 @@ export default function ShoppingList({
         isChecked: true,
         aiMatchedLabel: scanResult.product,
         ocrRawPrice: scanResult.ocr_raw,
+        // Categoria definida pela IA (null = usa o palpite local)
+        isFood: scanResult.is_food,
       });
 
       const priceStr = price != null ? `€${price.toFixed(2)}` : t.list.scanAddedNoPrice.split("(")[1]?.replace(")", "") ?? "senza prezzo";
@@ -399,9 +410,14 @@ export default function ShoppingList({
 
   // ── Salvar edição de item (EditItemModal) ────────────────
   const handleEditSave = useCallback(
-    async (itemId: string, quantity: number, unitPrice: number | null) => {
+    async (
+      itemId: string,
+      quantity: number,
+      unitPrice: number | null,
+      isFood: boolean
+    ) => {
       try {
-        await updateItem(itemId, { quantity, unit_price: unitPrice });
+        await updateItem(itemId, { quantity, unit_price: unitPrice, is_food: isFood });
         toast.success(t.list.itemUpdated);
       } catch {
         toast.error(t.list.itemSaveError);

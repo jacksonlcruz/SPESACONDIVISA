@@ -80,6 +80,8 @@ export type Database = {
           status: string | null;
           /** Timestamp do momento em que o item foi finalizado */
           purchased_at: string | null;
+          /** Categoria alimentar do produto (null = não classificado) */
+          is_food: boolean | null;
           created_at: string;
           updated_at: string;
         };
@@ -98,6 +100,7 @@ export type Database = {
           sort_order: number;
           status?: string | null;
           purchased_at?: string | null;
+          is_food?: boolean | null;
         };
         Update: {
           list_id?: string;
@@ -112,6 +115,7 @@ export type Database = {
           sort_order?: number;
           status?: string | null;
           purchased_at?: string | null;
+          is_food?: boolean | null;
         };
         Relationships: [];
       };

@@ -43,6 +43,13 @@ export interface ListItem {
   status: 'pending' | 'purchased' | null;
   /** Timestamp de quando o item foi finalizado (Finalizza Spesa) */
   purchased_at: string | null;
+  /**
+   * Categoria do produto (separação de totais no carrinho):
+   *   true  → alimentício / bebida
+   *   false → não alimentício (limpeza, higiene, casa…)
+   *   null  → não classificado (palpite local + correção manual)
+   */
+  is_food: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,7 +85,10 @@ export type CreateItemPayload = Pick<
 >;
 
 export type UpdateItemPayload = Partial<
-  Pick<ListItem, "name" | "quantity" | "unit" | "unit_price" | "is_checked" | "sort_order">
+  Pick<
+    ListItem,
+    "name" | "quantity" | "unit" | "unit_price" | "is_checked" | "sort_order" | "is_food"
+  >
 >;
 
 // ──────────────────────────────────────────────────────────
@@ -122,6 +132,11 @@ export interface ScanAnyResult {
   confidence: number;
   /** Explicação legível em italiano */
   explanation: string;
+  /**
+   * Classificação da IA: alimentício (true) ou não (false).
+   * null quando o modelo não soube responder.
+   */
+  is_food: boolean | null;
 }
 
 // ──────────────────────────────────────────────────────────

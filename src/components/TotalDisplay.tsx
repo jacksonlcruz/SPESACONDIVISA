@@ -7,6 +7,12 @@ import { useTranslation } from "@/hooks/useTranslation";
 
 interface TotalDisplayProps {
   totalSpent: number;
+  /** Subtotal dos itens alimentícios já no carrinho */
+  foodTotal: number;
+  /** Subtotal dos itens não alimentícios no carrinho */
+  nonFoodTotal: number;
+  /** Itens no carrinho com preço (controla a exibição da divisão) */
+  pricedCount: number;
   grandTotal: number;
   checkedCount: number;
   totalCount: number;
@@ -18,12 +24,16 @@ interface TotalDisplayProps {
 // Componente: TotalDisplay
 //
 // Painel fixo no topo (sticky) que exibe:
-//  • Total acumulado (itens marcados com preço)
+//  • Divisão alimentícios x não alimentícios
+//  • Total do carrinho (sempre visível)
 //  • Barra de progresso
 //  • Estimativa total
 // ──────────────────────────────────────────────────────────
 const TotalDisplay = memo(function TotalDisplay({
   totalSpent,
+  foodTotal,
+  nonFoodTotal,
+  pricedCount,
   grandTotal,
   checkedCount,
   totalCount,
@@ -34,7 +44,7 @@ const TotalDisplay = memo(function TotalDisplay({
 
   return (
     <div className="bg-surface-800 border-b border-surface-700 px-4 py-3">
-      {/* Linha principal */}
+      {/* Linha principal: itens no carrinho + alerta de preço */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center">
@@ -48,12 +58,11 @@ const TotalDisplay = memo(function TotalDisplay({
           </div>
         </div>
 
-        <div className="text-right">
-          <p className="text-xs text-zinc-500 font-medium">{t.list.cartTotal}</p>
-          <p className="text-2xl font-bold text-accent tabular-nums">
-            {formatCurrency(totalSpent)}
+        {pendingPriceCount > 0 && (
+          <p className="text-xs text-amber-400 font-medium">
+            {t.list.noPriceWarning.replace("{count}", String(pendingPriceCount))}
           </p>
-        </div>
+        )}
       </div>
 
       {/* Barra de progresso */}
@@ -69,18 +78,48 @@ const TotalDisplay = memo(function TotalDisplay({
         />
       </div>
 
-      {/* Linha secundária: estimativa + alertas */}
-      <div className="flex items-center justify-between mt-1.5">
-        <div className="flex items-center gap-1 text-xs text-zinc-500">
-          <TrendingUp size={11} />
-          <span>{t.list.estimateTotal.replace("{total}", formatCurrency(grandTotal))}</span>
-        </div>
+      {/* Divisão alimentícios x restante + total */}
+      <div className="mt-2.5">
+        {pricedCount > 0 && (
+          <>
+            <div className="flex items-baseline justify-between">
+              <span className="flex items-center gap-1.5 text-sm text-zinc-400">
+                <span aria-hidden>🍎</span>
+                {t.list.foodTotal}
+              </span>
+              <span className="text-sm font-medium text-zinc-200 tabular-nums">
+                {formatCurrency(foodTotal)}
+              </span>
+            </div>
 
-        {pendingPriceCount > 0 && (
-          <p className="text-xs text-amber-400 font-medium">
-            {t.list.noPriceWarning.replace("{count}", String(pendingPriceCount))}
-          </p>
+            <div className="flex items-baseline justify-between mt-0.5">
+              <span className="flex items-center gap-1.5 text-sm text-zinc-400">
+                <span aria-hidden>🧴</span>
+                {t.list.nonFoodTotal}
+              </span>
+              <span className="text-sm font-medium text-zinc-200 tabular-nums">
+                {formatCurrency(nonFoodTotal)}
+              </span>
+            </div>
+
+            <div className="mt-1 border-t border-surface-700" />
+          </>
         )}
+
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-sm font-semibold text-zinc-300">
+            {t.list.cartTotal}
+          </span>
+          <span className="text-2xl font-bold text-accent tabular-nums">
+            {formatCurrency(totalSpent)}
+          </span>
+        </div>
+      </div>
+
+      {/* Linha secundária: estimativa */}
+      <div className="flex items-center gap-1 text-xs text-zinc-500 mt-1.5">
+        <TrendingUp size={11} />
+        <span>{t.list.estimateTotal.replace("{total}", formatCurrency(grandTotal))}</span>
       </div>
     </div>
   );

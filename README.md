@@ -151,6 +151,7 @@ SPESACONDIVISA/
     │
     ├── lib/
     │   ├── supabaseClient.ts
+    │   ├── foodCategory.ts          ← Classificador alimentício x não alimentício
     │   └── database.types.ts
     │
     └── types/index.ts
@@ -444,6 +445,66 @@ supabase.channel(`list-items:${listId}`)
   "explanation": "Il prodotto fotografato corrisponde semanticamente a 'Tomate' nella lista."
 }
 ```
+
+---
+
+## 🍎 Categoria Alimentar (totais separados)
+
+Cada item da lista pode ser classificado como **alimentício** (`is_food = true`) ou
+**não alimentício** (`is_food = false`). Durante a compra, o painel de totais passa a
+mostrar a soma de cada grupo e, embaixo, o total geral:
+
+```
+🍎 Alimentari        € 12,30
+🧴 Non alimentari    €  7,45
+─────────────────────────────
+   Totale speso      € 19,75
+```
+
+### Como a categoria é definida (3 camadas)
+
+| Ordem | Origem | Quando |
+|-------|--------|--------|
+| 1 | `list_items.is_food` (banco) | Sempre que já estiver definido — vence tudo |
+| 2 | IA (GPT-4o Vision) | Ao escanear o produto; a IA devolve `is_food` no JSON |
+| 3 | Dicionário local (`src/lib/foodCategory.ts`) | Palpite para itens digitados à mão |
+| — | `null` | Sem classificação → entra em "não alimentícios" |
+
+A regra é única para UI e totais (`isFoodItem()`), então
+`alimentícios + não alimentícios = total` sempre fecha. O item vem com um chip
+🍎/🧴 na linha e a correção é manual: toque no item → no modal de edição há o
+toggle **🍎 Alimentare / 🧴 Non alimentare**.
+
+### Bebidas: as alcoólicas ficam fora
+
+A regra existe porque **ticket alimentari não cobre álcool**:
+
+| Produto | Categoria |
+|---------|-----------|
+| Água, leite, café, chá, sucos, refrigerantes (Fanta, Coca-Cola, Sprite, Pepsi), energéticos, chinotto, cedrata, acqua tonica | 🍎 Alimentari |
+| Vino, birra, spumante, prosecco, destilados (vodka, whisky, gin, rum, tequila…), licores (limoncello, grappa…), cocktails (spritz, mojito, caipirinha…) | 🧴 Non alimentari |
+| "Birra analcolica", "vino senza alcol", "alcohol free" | 🍎 Alimentari (exceção) |
+
+O dicionário cobre as marcas mais comuns de refrigerante e todos os tipos de
+bebida alcoólica, e o prompt da IA recebe a mesma regra. Se algum item já
+estiver com a categoria errada no banco (`is_food` vence tudo), abra o item →
+**🍎 Alimentare** → salvar.
+
+### Migração obrigatória
+
+Se o banco já existia antes desta feature, rode no SQL Editor do Supabase:
+
+```sql
+alter table public.list_items add column if not exists is_food boolean;
+create index if not exists idx_list_items_food on public.list_items(list_id, is_food);
+```
+
+Ou re-execute `supabase/schema.sql` (o bloco é idempotente — `add column if not exists`).
+
+Arquivos envolvidos: `src/lib/foodCategory.ts`, `src/hooks/useShoppingCalculator.ts`,
+`src/components/TotalDisplay.tsx`, `src/components/ShoppingListItem.tsx`,
+`src/components/EditItemModal.tsx`, `src/components/ScanConfirmModal.tsx`,
+`src/app/api/ai/scan-any/route.ts`.
 
 ---
 
