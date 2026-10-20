@@ -11,7 +11,7 @@ interface EditItemModalProps {
   item: ListItem;
   onSave: (itemId: string, quantity: number, unitPrice: number | null) => Promise<void>;
   onUncheck?: (itemId: string) => Promise<void>;
-  onDelete: (itemId: string) => void;
+  onDelete: (itemId: string) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -37,6 +37,7 @@ export default function EditItemModal({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isUnchecking, setIsUnchecking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const qty = parseFloat(quantity) || 0;
@@ -68,6 +69,20 @@ export default function EditItemModal({
       // erro tratado pelo pai
     } finally {
       setIsUnchecking(false);
+    }
+  };
+
+  // ── Excluir item ───────────────────────────────────────
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(item.id);
+      onClose();
+    } catch {
+      // erro tratado pelo pai
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -223,13 +238,15 @@ export default function EditItemModal({
                     Annulla
                   </button>
                   <button
-                    onClick={() => {
-                      onDelete(item.id);
-                      onClose();
-                    }}
-                    className="flex-1 py-2.5 rounded-xl bg-red-500 text-sm font-bold text-white transition-colors active:scale-[0.98] flex items-center justify-center gap-1"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl bg-red-500 disabled:opacity-60 text-sm font-bold text-white transition-colors active:scale-[0.98] flex items-center justify-center gap-1"
                   >
-                    <Trash2 size={13} />
+                    {isDeleting ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={13} />
+                    )}
                     Sì, elimina
                   </button>
                 </div>

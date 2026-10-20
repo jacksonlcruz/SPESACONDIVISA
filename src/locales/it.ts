@@ -152,6 +152,8 @@ const it: TranslationSchema = {
     itemAddError: "Impossibile aggiungere l'articolo",
     itemSaveError: "Errore nel salvataggio",
     itemDeleteError: "Errore",
+    itemDeleted: "Articolo eliminato 🗑️",
+    syncPending: "Sincronizzazione…",
     retry: "Riprova",
     titleUpdated: "Nome aggiornato ✓",
     titleSaveError: "Errore nel salvataggio",

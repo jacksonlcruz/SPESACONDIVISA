@@ -21,4 +21,12 @@
   .pb-safe {
     padding-bottom: max(0.75rem, var(--safe-area-bottom));
   }
+
+  /* Altura real do viewport no celular (100vh quebra quando a barra
+     de endereço aparece/some e "empurra" o rodapé para fora da tela).
+     100dvh é usado quando suportado; 100vh fica como fallback. */
+  .app-screen {
+    height: 100vh;
+    height: 100dvh;
+  }
 }

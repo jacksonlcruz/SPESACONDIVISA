@@ -19,7 +19,8 @@
 11. [Segurança — RLS](#-segurança--rls)
 12. [Deploy em Produção](#-deploy-em-produção)
 13. [Keep-Alive do Supabase Free](#-keep-alive-do-supabase-free)
-14. [Troubleshooting](#-troubleshooting)
+14. [Resiliência no Celular (anti-travamento)](#-resiliência-no-celular-anti-travamento)
+15. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -101,7 +102,7 @@ SPESACONDIVISA/
 ├── .env.local.example          ← Modelo de variáveis de ambiente
 ├── SUPABASE_KEEP_ALIVE.md      ← Evita a pausa do projeto Supabase Free
 ├── vercel.json                 ← Cron da Vercel (keep-alive diário)
-├── next.config.js              ← Configuração Next.js + PWA
+├── next.config.js              ← Configuração Next.js (headers + no-cache de navegação)
 ├── tailwind.config.js          ← Design system (cores, animações)
 ├── tsconfig.json               ← TypeScript strict mode
 ├── package.json
@@ -111,7 +112,8 @@ SPESACONDIVISA/
 │       └── supabase-keep-alive.yml ← Cron alternativo (a cada 2 dias)
 │
 ├── public/
-│   └── manifest.json           ← Manifesto PWA (ícones, tema)
+│   ├── manifest.json           ← Manifesto PWA (ícones, tema)
+│   └── sw.js                   ← Service Worker network-only (sem cache de app)
 │
 ├── supabase/
 │   ├── schema.sql              ← ⚠️ Execute PRIMEIRO no Supabase
@@ -140,6 +142,7 @@ SPESACONDIVISA/
     │   ├── ShoppingListItem.tsx    ← Linha individual (React.memo)
     │   ├── PriceModal.tsx          ← Bottom sheet: manual + câmera
     │   ├── CameraCapture.tsx       ← Câmera nativa + chamada à IA
+    │   ├── AppHealth.tsx           ← SW + recuperação de chunk + toasts presos
     │   └── TotalDisplay.tsx        ← Painel sticky: totais + progresso
     │
     ├── hooks/
@@ -537,6 +540,29 @@ curl "https://seuapp.vercel.app/api/keep-alive" -H "Authorization: Bearer SEU_SE
 
 ---
 
+## 🩺 Resiliência no Celular (anti-travamento)
+
+O app foi endurecido contra os três sintomas mais comuns de PWA no celular:
+
+| Sintoma | Causa raiz | Correção aplicada |
+|---|---|---|
+| App "trava" e é preciso fechar o navegador | Service worker antigo (`next-pwa`/Workbox 4) com `StaleWhileRevalidate` em **tudo** — HTML, payloads RSC e `/api/*` — servindo bundle antigo depois do deploy | `next-pwa` removido; `public/sw.js` reescrito como **network-only**, que apaga todos os caches legados ao ativar; `/sw.js` servido com `no-store` |
+| Adiciona/remove item e a página não atualiza | A UI dependia 100% do WebSocket: com o canal caído (tela bloqueada, troca Wi‑Fi↔4G) nada mudava até recarregar | `useRealtimeList` com **update otimista + rollback**, reconexão com backoff, resync ao voltar do background e reconciliação a cada 20s |
+| Pop-up (toast) aparece e não desaparece | `react-hot-toast` pausa o timer no *hover*; no toque do celular esse "hover" fica preso | Confirmação de exclusão virou **modal real**; toasts com duração fixa e `toast.dismiss()` ao voltar ao app |
+| Modal fica travado em "salvando" / spinner infinito | Escrita no Supabase sem limite de tempo (rede móvel que não responde) | `withTimeout` (15s) em **todas** as mutações: a UI é liberada com mensagem de erro em vez de congelar |
+
+Camadas de proteção no código:
+
+- **`src/components/AppHealth.tsx`** — registra o service worker, limpa toasts presos e recarrega uma única vez em caso de `ChunkLoadError` (bundle antigo).
+- **`src/hooks/useRealtimeList.ts`** — mutações otimistas, reconexão automática do canal e reconciliação periódica. Um erro de conexão **nunca** substitui a lista por uma tela de erro.
+- **`src/lib/async.ts`** — `withTimeout()`: nenhuma escrita deixa spinner/modal presos.
+- **`next.config.js`** — `staleTimes: { dynamic: 0 }`: o App Router sempre busca dados frescos ao navegar.
+- **`public/sw.js`** — network-only: nunca serve HTML/JS do cache.
+
+> **Após o deploy desta versão:** na primeira abertura no celular, o app substitui o service worker antigo e recarrega sozinho **uma única vez**. Se ainda aparecer a tela antiga, feche o app e abra novamente.
+
+---
+
 ## 🔧 Troubleshooting
 
 | Problema | Solução |
@@ -546,7 +572,9 @@ curl "https://seuapp.vercel.app/api/keep-alive" -H "Authorization: Bearer SEU_SE
 | Realtime não sincroniza | Confirme que `supabase/schema.sql` foi executado; verifique **Database → Replication** |
 | Câmera não abre no celular | Precisa de HTTPS — use `npx ngrok http 3000` |
 | Erro de tipos TypeScript | `npx supabase gen types typescript --project-id ID > src/lib/database.types.ts` |
-| `next-pwa` erro no Windows em dev | Normal — PWA desabilitado em dev automaticamente, não afeta funcionamento |
+| `next-pwa` erro no Windows em dev | Não se aplica mais — o `next-pwa` foi removido; o SW é estático (`public/sw.js`) |
+| App mostra versão antiga / tela travada após deploy | Feche e reabra o app: o SW network-only limpa o cache legado. Confirme que `/sw.js` responde com `Cache-Control: no-store` |
+| Alterações não aparecem em outro celular | Verifique **Database → Replication** em `list_items`; o app reconcilia a cada 20s, mas sem replication o push em tempo real não funciona |
 | Projeto Supabase pausado | Restaure em [supabase.com/dashboard](https://supabase.com/dashboard) e rode `supabase/keep-alive.sql`; veja [Keep-Alive](#-keep-alive-do-supabase-free) |
 | `/api/keep-alive` retorna 401 | Header `Authorization: Bearer <KEEP_ALIVE_SECRET>` ausente ou diferente da env var |
 

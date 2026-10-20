@@ -53,7 +53,7 @@ export default async function ListPage({ params }: ListPageProps) {
   const titleWithEmoji = `${list.emoji} ${list.title}`;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="app-screen flex flex-col overflow-hidden">
       <ShoppingList
         listId={list.id}
         listTitle={titleWithEmoji}

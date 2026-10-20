@@ -84,6 +84,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          /** Opcional: permite gerar o ID no cliente (insert otimista) */
+          id?: string;
           list_id: string;
           created_by?: string | null;
           name: string;

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Urbanist } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import LanguageProviderWrapper from "@/components/LanguageProviderWrapper";
+import AppHealth from "@/components/AppHealth";
 import "./globals.css";
 
 const urbanist = Urbanist({ subsets: ["latin"], display: "swap", variable: "--font-urbanist" });
@@ -22,6 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
   themeColor: "#09090b",
 };
 
@@ -33,6 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="bg-surface-900 antialiased">
+        {/* Guarda-costas do app: SW network-only, recuperação de chunk
+            antigo e limpeza de toasts presos no mobile */}
+        <AppHealth />
+
         {/* Container mobile-first: max 430px centrado em telas maiores */}
         <div className="relative min-h-screen max-w-[430px] mx-auto shadow-2xl bg-surface-900">
           <LanguageProviderWrapper>
@@ -42,6 +48,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster
           position="top-center"
           toastOptions={{
+            // Duracao curta e previsivel: nenhum toast fica "preso"
+            duration: 3000,
+            success: { duration: 2200 },
+            error: { duration: 4000 },
             style: {
               borderRadius: "16px",
               fontSize: "14px",
