@@ -340,3 +340,44 @@ begin
   return json_build_object('list_id', v_list_id, 'status', 'joined');
 end;
 $$;
+
+-- ──────────────────────────────────────────────────────────
+-- 9. KEEP-ALIVE — evita a pausa automática do plano Free
+--    (o Supabase pausa projetos após 7 dias sem atividade
+--     de banco — ver também supabase/keep-alive.sql)
+-- ──────────────────────────────────────────────────────────
+create table if not exists public.keep_alive_pings (
+  id          smallint    primary key default 1,
+  last_ping   timestamptz not null default now(),
+  ping_count  bigint      not null default 0,
+  constraint keep_alive_pings_single_row check (id = 1)
+);
+
+-- A tabela não é acessível diretamente (RLS sem policies):
+-- apenas a função SECURITY DEFINER abaixo escreve nela.
+alter table public.keep_alive_pings enable row level security;
+
+create or replace function public.keep_alive()
+returns table (last_ping_at timestamptz, ping_total bigint)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_last_ping  timestamptz;
+  v_ping_total bigint;
+begin
+  insert into public.keep_alive_pings as p (id, last_ping, ping_count)
+  values (1, now(), 1)
+  on conflict (id) do update
+    set last_ping  = now(),
+        ping_count = p.ping_count + 1
+  returning p.last_ping, p.ping_count
+  into v_last_ping, v_ping_total;
+
+  return query select v_last_ping, v_ping_total;
+end;
+$$;
+
+revoke all on function public.keep_alive() from public;
+grant execute on function public.keep_alive() to anon, authenticated;

@@ -18,7 +18,8 @@
 10. [Fluxo IA / OCR](#-fluxo-ia--ocr)
 11. [Segurança — RLS](#-segurança--rls)
 12. [Deploy em Produção](#-deploy-em-produção)
-13. [Troubleshooting](#-troubleshooting)
+13. [Keep-Alive do Supabase Free](#-keep-alive-do-supabase-free)
+14. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -84,6 +85,7 @@
 │               API ROUTES — Next.js App Router                │
 │  POST /api/ai/match-item    →  GPT-4o Vision (OCR + match)   │
 │  PATCH /api/lists/update-ai-data  →  Persiste dados de IA    │
+│  GET  /api/keep-alive       →  Batimento no Postgres (cron)  │
 │  GET  /auth/callback        →  OAuth exchange code           │
 │  POST /auth/signout         →  Encerra sessão                │
 └──────────────────────────────────────────────────────────────┘
@@ -97,16 +99,23 @@
 SPESACONDIVISA/
 │
 ├── .env.local.example          ← Modelo de variáveis de ambiente
+├── SUPABASE_KEEP_ALIVE.md      ← Evita a pausa do projeto Supabase Free
+├── vercel.json                 ← Cron da Vercel (keep-alive diário)
 ├── next.config.js              ← Configuração Next.js + PWA
 ├── tailwind.config.js          ← Design system (cores, animações)
 ├── tsconfig.json               ← TypeScript strict mode
 ├── package.json
 │
+├── .github/
+│   └── workflows/
+│       └── supabase-keep-alive.yml ← Cron alternativo (a cada 2 dias)
+│
 ├── public/
 │   └── manifest.json           ← Manifesto PWA (ícones, tema)
 │
 ├── supabase/
-│   └── schema.sql              ← ⚠️ Execute PRIMEIRO no Supabase
+│   ├── schema.sql              ← ⚠️ Execute PRIMEIRO no Supabase
+│   └── keep-alive.sql          ← Tabela + RPC do keep-alive
 │
 └── src/
     ├── app/                    ← Next.js App Router
@@ -122,6 +131,7 @@ SPESACONDIVISA/
     │   └── api/
     │       ├── ai/match-item/route.ts
     │       ├── lists/update-ai-data/route.ts
+    │       ├── keep-alive/route.ts   ← mantém o Supabase Free ativo
     │       ├── auth/callback/route.ts
     │       └── auth/signout/route.ts
     │
@@ -254,6 +264,13 @@ OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # APP
 # ─────────────────────────────────────────────────────
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# ─────────────────────────────────────────────────────
+# KEEP-ALIVE  (protege GET/POST /api/keep-alive)
+# Gere com: openssl rand -hex 32
+# Se omitido, a rota fica pública.
+# ─────────────────────────────────────────────────────
+KEEP_ALIVE_SECRET=string_aleatoria_longa
 ```
 
 | Variável | Desenvolvimento | Produção |
@@ -262,6 +279,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave `anon` | Mesma |
 | `OPENAI_API_KEY` | Chave dev/teste | Chave produção |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | `https://seudominio.com` |
+| `KEEP_ALIVE_SECRET` | Opcional | **Recomendado** — ver [Keep-Alive](#-keep-alive-do-supabase-free) |
 
 ---
 
@@ -454,11 +472,68 @@ vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add OPENAI_API_KEY
 vercel env add NEXT_PUBLIC_APP_URL
+vercel env add KEEP_ALIVE_SECRET   # protege o cron de keep-alive
 ```
 
 Após o deploy, configure no painel do Supabase:
 - **Authentication → URL Configuration → Site URL**: `https://seuapp.vercel.app`
 - **Redirect URLs**: `https://seuapp.vercel.app/auth/callback`
+
+> O `vercel.json` já registra o cron diário `GET /api/keep-alive` no deploy — é o que impede o
+> projeto Supabase Free de ser pausado por inatividade. Detalhes na seção
+> [Keep-Alive](#-keep-alive-do-supabase-free).
+
+---
+
+## ⏰ Keep-Alive do Supabase Free
+
+O plano Free do Supabase **pausa o projeto após 7 dias sem atividade de banco**. Como o app é usado
+cerca de **1 vez por mês**, isso acontecia sempre e exigia reativar manualmente no dashboard.
+
+Solução implementada:
+
+```sql
+-- supabase/keep-alive.sql
+public.keep_alive_pings   -- tabela de controle (1 linha)
+public.keep_alive()       -- RPC SECURITY DEFINER: INSERT ... ON CONFLICT DO UPDATE
+                          -- (escrita real = atividade contabilizada pelo Supabase)
+```
+
+```ts
+// src/app/api/keep-alive/route.ts  → GET | POST /api/keep-alive
+supabase.rpc("keep_alive"); // executa o batimento e devolve last_ping_at / ping_total
+```
+
+```json
+// vercel.json → cron diário (Hobby permite 1x/dia)
+{ "crons": [{ "path": "/api/keep-alive", "schedule": "0 6 * * *" }] }
+```
+
+### Ativação (3 passos)
+
+1. **SQL Editor do Supabase** → cole e rode `supabase/keep-alive.sql`
+2. Defina `KEEP_ALIVE_SECRET` nas variáveis de ambiente (local + Vercel)
+3. Faça o deploy — a Vercel já agenda a chamada diária
+
+Teste manual:
+
+```bash
+curl "https://seuapp.vercel.app/api/keep-alive" -H "Authorization: Bearer SEU_SEGREDO"
+# → { "ok": true, "latencyMs": 122, "database": { "pingTotal": 7, ... } }
+```
+
+### Alternativas de agendamento
+
+| Opção | Frequência | Observação |
+|---|---|---|
+| **Vercel Cron** (`vercel.json`) | 1x/dia | Já configurado; exige deploy na Vercel |
+| **GitHub Actions** (`.github/workflows/supabase-keep-alive.yml`) | a cada 2 dias | Funciona com qualquer host; desativa após 60 dias sem commits |
+| **cron-job.org / UptimeRobot** | 1x/dia | Sem código; basta cadastrar a URL + header |
+
+> ⚠️ **Limitação:** keep-alive **não reativa** projeto já pausado — nesse caso use
+> "Restore project" no dashboard. Ele existe para que o projeto nunca chegue a pausar.
+>
+> 📖 Guia completo (variáveis, respostas de erro, quotas): **[SUPABASE_KEEP_ALIVE.md](./SUPABASE_KEEP_ALIVE.md)**
 
 ---
 
@@ -472,6 +547,8 @@ Após o deploy, configure no painel do Supabase:
 | Câmera não abre no celular | Precisa de HTTPS — use `npx ngrok http 3000` |
 | Erro de tipos TypeScript | `npx supabase gen types typescript --project-id ID > src/lib/database.types.ts` |
 | `next-pwa` erro no Windows em dev | Normal — PWA desabilitado em dev automaticamente, não afeta funcionamento |
+| Projeto Supabase pausado | Restaure em [supabase.com/dashboard](https://supabase.com/dashboard) e rode `supabase/keep-alive.sql`; veja [Keep-Alive](#-keep-alive-do-supabase-free) |
+| `/api/keep-alive` retorna 401 | Header `Authorization: Bearer <KEEP_ALIVE_SECRET>` ausente ou diferente da env var |
 
 ---
 

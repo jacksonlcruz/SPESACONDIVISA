@@ -1,0 +1,50 @@
+name: Supabase Keep-Alive
+
+# Mantém o projeto Supabase Free ativo (o plano Free pausa o projeto
+# após 7 dias sem atividade de banco).
+#
+# Alternativa/complemento ao Vercel Cron (vercel.json).
+# Ver documentação completa: SUPABASE_KEEP_ALIVE.md
+
+on:
+  schedule:
+    # A cada 2 dias, 07:37 UTC — margem folgada em relação aos 7 dias
+    - cron: "37 7 */2 * *"
+  workflow_dispatch: # permite disparo manual na aba Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping /api/keep-alive
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Chamar endpoint de keep-alive
+        env:
+          # Configure em: Settings → Secrets and variables → Actions
+          #   Variable KEEP_ALIVE_URL    = https://seuapp.vercel.app/api/keep-alive
+          #   Secret   KEEP_ALIVE_SECRET = mesmo valor da env var da Vercel
+          KEEP_ALIVE_URL: ${{ vars.KEEP_ALIVE_URL || secrets.KEEP_ALIVE_URL }}
+          KEEP_ALIVE_SECRET: ${{ secrets.KEEP_ALIVE_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${KEEP_ALIVE_URL}" ]; then
+            echo "::error::Defina KEEP_ALIVE_URL em Settings → Secrets and variables → Actions (Variables)."
+            exit 1
+          fi
+
+          echo "Keep-alive → ${KEEP_ALIVE_URL}"
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer ${KEEP_ALIVE_SECRET}" \
+            -H "Accept: application/json" \
+            "${KEEP_ALIVE_URL}"
+          echo
+          echo "OK — batimento registrado no Postgres."
