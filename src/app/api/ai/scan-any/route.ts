@@ -13,9 +13,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// ── Cliente OpenAI (lazy) ─────────────────────────────────
+// O `next build` avalia este módulo na etapa "Collecting page
+// data". Instanciar o cliente no topo do arquivo derruba o build
+// quando a OPENAI_API_KEY não está definida no ambiente de build
+// (ex.: Vercel, onde a variável pode estar só em Runtime).
+// Por isso o cliente é criado sob demanda, na primeira requisição.
+let openaiClient: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  if (!openaiClient) openaiClient = new OpenAI({ apiKey });
+  return openaiClient;
+}
 
 const MAX_IMAGE_SIZE_BYTES = 7 * 1024 * 1024; // ~5 MB em base64
 
@@ -68,6 +79,16 @@ Schema obbligatorio:
 - Non inventare prodotti non visibili nell'immagine.
 - Non assumere prezzi se non chiaramente leggibili.
 - Mantieni l'output JSON pulito, senza markdown.`;
+
+    // ── Cliente OpenAI (lazy) ─────────────────────────────
+    const openai = getOpenAIClient();
+    if (!openai) {
+      console.error("[ai/scan-any] OPENAI_API_KEY não configurada no ambiente");
+      return NextResponse.json(
+        { error: "Servizio AI non configurato. Contatta l'assistenza." },
+        { status: 503 }
+      );
+    }
 
     // ── Chamada à API OpenAI Vision ───────────────────────
     const response = await openai.chat.completions.create({
